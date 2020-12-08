@@ -36,7 +36,7 @@ class PatchMaskGenerator(MaskGenerator):
         y = np.random.uniform(src_size.h - patch_size.h)
         return Position(x, y)
 
-    def __call__(self, img: Image) -> Image:
+    def __call__(self, img: Image.Image) -> Image.Image:
         src_size = Size(img.width, img.height)
 
         patch_size = self.sample_patch_size()

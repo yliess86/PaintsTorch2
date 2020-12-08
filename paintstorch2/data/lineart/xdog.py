@@ -22,7 +22,7 @@ class xDoGLineartGenerator(LineartGenerator):
         self.k = k
         self.σ = σ
 
-    def __call__(self, img: Image) -> Image:
+    def __call__(self, img: Image.Image) -> Image.Image:
         x = np.array(img.convert("L")) / 255
         
         gaussian_a = gaussian_filter(x, self.σ)
