@@ -13,6 +13,22 @@ import paintstorch2.data.mask as pt2_mask
 import requests
 
 
+def compose_input(
+    img: Image.Image,
+    lineart: Image.Image,
+    mask: Image.Image,
+) -> Image.Image:
+    img = np.array(img) / 255
+    lineart = np.array(lineart) / 255
+    mask = np.array(mask) / 255
+    
+    img *= (1 - mask)[:, :, None]
+    lineart *= mask
+    composition = img + lineart[:, :, None]
+
+    return Image.fromarray((composition * 255).astype(np.uint8))
+
+
 BASE = "https://upload.wikimedia.org/wikipedia/en"
 URL = os.path.join(BASE, "7/7d/Lenna_%28test_image%29.png")
 SIZE_512 = (512, ) * 2
@@ -40,19 +56,19 @@ ax.imshow(np.array(lineart_512), cmap="gray")
 ax.set_axis_off()
 
 ax = fig.add_subplot(2, 3, 3)
-ax.imshow(np.array(colors_64))
+ax.imshow(np.array(compose_input(img_512, lineart_512, mask_512)))
 ax.set_axis_off()
 
 ax = fig.add_subplot(2, 3, 4)
-ax.imshow(np.array(mask_512), cmap="gray")
+ax.imshow(np.array(colors_64))
 ax.set_axis_off()
 
 ax = fig.add_subplot(2, 3, 5)
-ax.imshow(np.array(hints_64.hints))
+ax.imshow(np.array(mask_512), cmap="gray")
 ax.set_axis_off()
 
 ax = fig.add_subplot(2, 3, 6)
-ax.imshow(np.array(hints_64.mask), cmap="gray")
+ax.imshow(np.array(hints_64.hints))
 ax.set_axis_off()
 
 fig.canvas.draw()
