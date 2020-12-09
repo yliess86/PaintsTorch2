@@ -13,13 +13,13 @@ class ModConv2D(nn.Module):
         ochannels: int,
         *,
         kernel_size: int,
-        demodulation: bool = True,
+        demod: bool = True,
     ) -> None:
         super(ModConv2D, self).__init__()
         self.ichannels = ichannels
         self.ochannels = ochannels
         self.kernel_size = kernel_size
-        self.demodulation = demodulation
+        self.demod = demod
         
         weight_size = ochannels, ichannels, kernel_size, kernel_size
         self.weight = nn.Parameter(torch.randn(*weight_size))
@@ -36,7 +36,7 @@ class ModConv2D(nn.Module):
         wo = self.weight[None, :, :, :, :]
         weights = wo * (wy + 1)
 
-        if self.demodulation:
+        if self.demod:
             dim = 2, 3, 4
             d = torch.rsqrt((weights ** 2).sum(dim=dim, keepdims=True) + ε)
             weights = weights * d
@@ -49,8 +49,43 @@ class ModConv2D(nn.Module):
         return x.view(-1, self.ochannels, h, w)
 
 
+class ToRGB(nn.Module):
+    def __init__(
+        self,
+        latent_dim: int,
+        ichannels: int,
+        outchannels: int = 3,
+        upsample: int = None,
+    ) -> None:
+        super(ToRGB, self).__init__()
+        self.style_mapping = nn.Linear(latent_dim, ichannels)
+        self.mod_conv2d = ModConv2D(
+            ichannels, outchannels, kernel_size=1, demod=False,
+        )
+        
+        self.upsample = nn.Upsample(
+            scale_factor=upsample,
+            mode="bilinear",
+            align_corners=False
+        ) if upsample is not None else None
+
+    def forward(
+        self, x: torch.Tensor, residual: torch.Tensor, style: torch.Tensor,
+    ) -> torch.Tensor:
+        x = self.mod_conv2d(x, self.style_mapping(style))
+        
+        if residual is not None:
+            x = x + residual
+        if self.upsample is not None:
+            x = self.upsample(x)
+        
+        return x
+
+
 if __name__ == "__main__":
     x = torch.rand((2, 3, 64, 64))
     y = torch.rand((2, 3))
+    z = torch.rand((2, 32))
 
     out = ModConv2D(3, 8, kernel_size=3)(x, y)
+    out = ToRGB(32, 8, upsample=2)(out, x, z)
