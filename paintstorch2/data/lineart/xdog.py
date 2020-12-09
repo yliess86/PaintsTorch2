@@ -15,7 +15,7 @@ class xDoGLineartGenerator(LineartGenerator):
         k: float = 4.5,
         σ: float = 0.3,
     ) -> None:
-        super(LinearGenerator, self).__init__()
+        super(xDoGLineartGenerator, self).__init__()
         self.γ = γ
         self.ϕ = ϕ
         self.ϵ = ϵ

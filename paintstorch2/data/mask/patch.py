@@ -41,10 +41,19 @@ class PatchMaskGenerator(MaskGenerator):
 
         patch_size = self.sample_patch_size()
         patch_pos = self.sample_patch_position(patch_size, src_size)
+        
+        top_left = Position(
+            patch_pos.x - patch_size.w // 2,
+            patch_pos.y - patch_size.h // 2,
+        )
+        bottom_right = Position(
+            patch_pos.x + patch_size.w // 2,
+            patch_pos.y + patch_size.h // 2,
+        )
 
         mask = Image.new("L", src_size)
         draw = ImageDraw.Draw(mask)
-        draw.rectangle((patch_pos, patch_size), fill="#ffffff")
+        draw.rectangle((top_left, bottom_right), fill="#ffffff")
 
         return mask
 
