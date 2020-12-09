@@ -39,7 +39,7 @@ img_64 = img_512.resize(SIZE_64)
 
 lineart_512 = pt2_lineart.xDoGLineartGenerator()(img_512)
 
-mask_512 = pt2_mask.PatchMaskGenerator((64, 256), (64, 256))(img_512)
+mask_512 = pt2_mask.kMeansMaskGenerator((2, 10))(img_512)
 mask_64 = mask_512.resize(SIZE_64)
 
 colors_64 = pt2_color.kMeansColorSimplifier((5, 15))(img_64)
