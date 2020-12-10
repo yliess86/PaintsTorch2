@@ -56,6 +56,7 @@ class Generator(nn.Module):
         style: torch.Tensor,
         noise: torch.Tensor,
     ) -> torch.Tensor:
+        residual = x
         x = self.preprocess(x)
 
         affines: List[torch.Tensor] = []
@@ -68,8 +69,33 @@ class Generator(nn.Module):
             affine = affines[len(affines) - i - 1]
             x, rgb = upsample(x, rgb, style, noise)
 
-        return rgb
+        return residual + rgb
 
+
+class Discriminator(nn.Module):
+    def __init__(self, image_size: int, capacity: int = 4) -> None:
+        super(Discriminator, self).__init__()
+        self.image_size = image_size
+        self.n_layers = int(np.log2(image_size) - 1) + 3
+
+        channels = [capacity * (2 ** (i + 1)) for i in range(self.n_layers)]
+        iochannels = list(zip(channels[:-1], channels[1:]))
+
+        pad = (3 - 1) // 2
+        self.preprocess = nn.Conv2d(3, channels[0], kernel_size=3, padding=pad)
+        self.downsample = nn.ModuleList([
+            pt2_blocks.DownsampleBlock(ichannels, ochannels, downsample=i > 0)
+            for i, (ichannels, ochannels) in enumerate(iochannels)
+        ])
+
+        self.logits = nn.Conv2d(channels[-1], 1, kernel_size=1)
+
+    def forward( self, x: torch.Tensor) -> torch.Tensor:
+        x = self.preprocess(x)
+        for downsample in self.downsample:
+            x = downsample(x)
+        x = self.logits(x).view(x.size(0), -1)
+        return x
 
 
 if __name__ == '__main__':
@@ -78,3 +104,4 @@ if __name__ == '__main__':
     n = torch.rand((2, 1, 64, 64))
 
     out = Generator(64, 32)(x, z, n)
+    pred = Discriminator(64)(out)
