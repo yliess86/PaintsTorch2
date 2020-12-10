@@ -1,5 +1,6 @@
 from typing import Tuple
 
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -136,6 +137,47 @@ class GeneratorBlock(nn.Module):
         return x, rgb
 
 
+class DiscriminatorBlock(nn.Module):
+    def __init__(
+        self,
+        ichannels: int,
+        ochannels: int,
+        downsample: bool = True,
+    ) -> None:
+        super(DiscriminatorBlock, self).__init__()
+        self.conv_residual = nn.Conv2d(
+            ichannels,
+            ochannels,
+            kernel_size=1,
+            stride=2 if downsample else 1,
+        )
+
+        self.layers = nn.Sequential(
+            nn.Conv2d(ichannels, ochannels, kernel_size=3, padding=1),
+            nn.LeakyReLU(2, inplace=True),
+            nn.Conv2d(ochannels, ochannels, kernel_size=3, padding=1),
+            nn.LeakyReLU(2, inplace=True),
+        )
+
+        self.downsample = nn.Conv2d(
+            ochannels,
+            ochannels,
+            kernel_size=3,
+            stride=2,
+            padding=1,
+        ) if downsample else None
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        residual = self.conv_residual(x)
+        x = self.layers(x)
+        
+        if self.downsample is not None:
+            x = self.downsample(x)
+
+        x = (x + residual) / np.sqrt(2)
+        return x
+
+
 if __name__ == "__main__":
     x = torch.rand((2, 3, 64, 64))
     y = torch.rand((2, 3))
@@ -146,3 +188,4 @@ if __name__ == "__main__":
     out = ToRGB(32, 8, upsample=True)(out, x, z)
 
     out, rgb = GeneratorBlock(32, 3, 8, upsample=False)(x, x, z, n)
+    pred = DiscriminatorBlock(8, 1, downsample=True)(out)
