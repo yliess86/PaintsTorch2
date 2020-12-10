@@ -1,3 +1,5 @@
+from typing import Tuple
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -55,24 +57,24 @@ class ToRGB(nn.Module):
         latent_dim: int,
         ichannels: int,
         outchannels: int = 3,
-        upsample: int = None,
+        upsample: bool = False,
     ) -> None:
         super(ToRGB, self).__init__()
         self.style_mapping = nn.Linear(latent_dim, ichannels)
-        self.mod_conv2d = ModConv2D(
+        self.mod_conv = ModConv2D(
             ichannels, outchannels, kernel_size=1, demod=False,
         )
         
         self.upsample = nn.Upsample(
-            scale_factor=upsample,
+            scale_factor=2,
             mode="bilinear",
             align_corners=False
-        ) if upsample is not None else None
+        ) if upsample else None
 
     def forward(
         self, x: torch.Tensor, residual: torch.Tensor, style: torch.Tensor,
     ) -> torch.Tensor:
-        x = self.mod_conv2d(x, self.style_mapping(style))
+        x = self.mod_conv(x, self.style_mapping(style))
         
         if residual is not None:
             x = x + residual
@@ -82,10 +84,65 @@ class ToRGB(nn.Module):
         return x
 
 
+class GeneratorBlock(nn.Module):
+    def __init__(
+        self,
+        latent_dim: int,
+        ichannels: int,
+        ochannels: int,
+        upsample: bool = True,
+        upsample_rgb: bool = True,
+    ) -> None:
+        super(GeneratorBlock, self).__init__()
+        self.upsample = nn.Upsample(
+            scale_factor=2,
+            mode="bilinear",
+            align_corners=False,
+        ) if upsample else None
+
+        self.style1 = nn.Linear(latent_dim, ichannels)
+        self.noise1 = nn.Conv2d(1, ochannels, kernel_size=1)
+        self.mode_conv1 = ModConv2D(ichannels, ochannels, kernel_size=3)
+
+        self.style2 = nn.Linear(latent_dim, ochannels)
+        self.noise2 = nn.Conv2d(1, ochannels, kernel_size=1)
+        self.mode_conv2 = ModConv2D(ochannels, ochannels, kernel_size=3)
+
+        self.activation = nn.LeakyReLU(0.2, inplace=True)
+        self.to_rgb = ToRGB(latent_dim, ochannels, upsample=upsample_rgb)
+
+    def forward(
+        self,
+        x: torch.Tensor,
+        residual: torch.Tensor,
+        style: torch.Tensor,
+        noise: torch.Tensor,
+    ) -> Tuple[torch.Tensor]:
+        if self.upsample is not None:
+            x = self.upsample(x)
+        
+        b, c, h, w = x.size()
+        noise = noise[:, :, :h, :w]
+        noise1 = self.noise1(noise)
+        noise2 = self.noise2(noise)
+
+        style1 = self.style1(style)
+        style2 = self.style2(style)
+
+        x = self.activation(self.mode_conv1(x, style1) + noise1)
+        x = self.activation(self.mode_conv2(x, style2) + noise2)
+
+        rgb = self.to_rgb(x, residual, style)
+        return x, rgb
+
+
 if __name__ == "__main__":
     x = torch.rand((2, 3, 64, 64))
     y = torch.rand((2, 3))
     z = torch.rand((2, 32))
+    n = torch.rand((2, 1, 64, 64))
 
     out = ModConv2D(3, 8, kernel_size=3)(x, y)
-    out = ToRGB(32, 8, upsample=2)(out, x, z)
+    out = ToRGB(32, 8, upsample=True)(out, x, z)
+
+    out, rgb = GeneratorBlock(32, 3, 8, upsample=False)(x, x, z, n)
