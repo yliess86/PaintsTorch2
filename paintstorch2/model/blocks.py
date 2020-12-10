@@ -85,7 +85,7 @@ class ToRGB(nn.Module):
         return x
 
 
-class GeneratorBlock(nn.Module):
+class UpsampleBlock(nn.Module):
     def __init__(
         self,
         latent_dim: int,
@@ -94,7 +94,7 @@ class GeneratorBlock(nn.Module):
         upsample: bool = True,
         upsample_rgb: bool = True,
     ) -> None:
-        super(GeneratorBlock, self).__init__()
+        super(UpsampleBlock, self).__init__()
         self.upsample = nn.Upsample(
             scale_factor=2,
             mode="bilinear",
@@ -137,14 +137,14 @@ class GeneratorBlock(nn.Module):
         return x, rgb
 
 
-class DiscriminatorBlock(nn.Module):
+class DownsampleBlock(nn.Module):
     def __init__(
         self,
         ichannels: int,
         ochannels: int,
         downsample: bool = True,
     ) -> None:
-        super(DiscriminatorBlock, self).__init__()
+        super(DownsampleBlock, self).__init__()
         self.conv_residual = nn.Conv2d(
             ichannels,
             ochannels,
@@ -187,5 +187,5 @@ if __name__ == "__main__":
     out = ModConv2D(3, 8, kernel_size=3)(x, y)
     out = ToRGB(32, 8, upsample=True)(out, x, z)
 
-    out, rgb = GeneratorBlock(32, 3, 8, upsample=False)(x, x, z, n)
-    pred = DiscriminatorBlock(8, 1, downsample=True)(out)
+    out, rgb = UpsampleBlock(32, 3, 8, upsample=False)(x, x, z, n)
+    out = DownsampleBlock(8, 1, downsample=True)(out)
