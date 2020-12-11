@@ -61,7 +61,7 @@ class ToRGB(nn.Module):
         upsample: bool = False,
     ) -> None:
         super(ToRGB, self).__init__()
-        self.style_mapping = nn.Linear(latent_dim, ichannels)
+        self.style = nn.Linear(latent_dim, ichannels)
         self.mod_conv = ModConv2D(
             ichannels, outchannels, kernel_size=1, demod=False,
         )
@@ -69,13 +69,13 @@ class ToRGB(nn.Module):
         self.upsample = nn.Upsample(
             scale_factor=2,
             mode="bilinear",
-            align_corners=False
+            align_corners=False,
         ) if upsample else None
 
     def forward(
         self, x: torch.Tensor, residual: torch.Tensor, style: torch.Tensor,
     ) -> torch.Tensor:
-        x = self.mod_conv(x, self.style_mapping(style))
+        x = self.mod_conv(x, self.style(style))
         
         if residual is not None:
             x = x + residual
@@ -177,16 +177,3 @@ class ResNetXtBootleneck(nn.Module):
             bottleneck = bottleneck + self.shortcut(x)
         
         return bottleneck
-
-
-if __name__ == "__main__":
-    x = torch.rand((2, 3, 64, 64))
-    y = torch.rand((2, 3))
-    z = torch.rand((2, 32))
-    n = torch.rand((2, 1, 64, 64))
-
-    out = ModConv2D(3, 8, kernel_size=3)(x, y)
-    out = ToRGB(32, 8, upsample=True)(out, x, z)
-
-    out, rgb = UpsampleBlock(32, 3, 8, upsample=False)(x, x, z, n)
-    out = DownsampleBlock(8, 1, downsample=True)(out)

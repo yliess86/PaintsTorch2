@@ -7,62 +7,73 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
-# class Generator(nn.Module):
-#     def __init__(self, latent_dim: int) -> None:
-#         super(Generator, self).__init__()
-#         self.latent_dim = latent_dim
-#         self.channels = [32, 64, 128, 512]
+class Generator(nn.Module):
+    def __init__(self, latent_dim: int, capacity: int = 64) -> None:
+        super(Generator, self).__init__()
+        self.latent_dim = latent_dim
+        c0 = capacity // 2
+        c1, c2, c4, c8 = [capacity * i for i in [1, 2, 4, 8]]
+        ch = c2 + c1   # Hints Encoding Injection
+        cf = c8 + 512  # Illustration2Vec Injection
+
+        self.hints_peprocess = nn.Sequential(
+            nn.Conv2d(4, c1, kernel_size=7, stride=1, padding=3),
+            nn.LeakyReLU(0.2, inplace=True),
+        )
+
+        self.encoder0 = nn.Sequential(
+            nn.Conv2d(3, c0, kernel_size=3, stride=1, padding=1),
+            nn.LeakyReLU(0.2, inplace=True),
+        )
+        self.encoder1 = nn.Sequential(
+            nn.Conv2d(c0, c1, kernel_size=4, stride=2, padding=1),
+            nn.LeakyReLU(0.2, inplace=True),
+        )
+        self.encoder2 = nn.Sequential(
+            nn.Conv2d(c1, c2, kernel_size=4, stride=2, padding=1),
+            nn.LeakyReLU(0.2, inplace=True),
+        )
+        self.encoder3 = nn.Sequential(
+            nn.Conv2d(ch, c4, kernel_size=4, stride=2, padding=1),
+            nn.LeakyReLU(0.2, inplace=True),
+        )
+        self.encoder4 = nn.Sequential(
+            nn.Conv2d(c4, c8, kernel_size=4, stride=2, padding=1),
+            nn.LeakyReLU(0.2, inplace=True),
+        )
+
+        self.decoder4 = pt2_blocks.UpsampleBlock(latent_dim, cf, c8)
+        self.decoder3 = pt2_blocks.UpsampleBlock(latent_dim, c8 + c4, c4)
+        self.decoder2 = pt2_blocks.UpsampleBlock(latent_dim, c4 + c2, c2)
+        self.decoder1 = pt2_blocks.UpsampleBlock(latent_dim, c2 + c1, c1)
         
-#         iochannels = list(zip([
-#             self.channels[0]] + self.channels[:-1], self.channels,
-#         ))
+        self.out = nn.Conv2d(c1 + c0, 3, kernel_size=3, stride=1, padding=1)
 
-#         self.preprocess = nn.Conv2d(
-#             3, self.channels[0], kernel_size=3, padding=(3 - 1) // 2,
-#         )
+    def forward(
+        self,
+        x: torch.Tensor,
+        h: torch.Tensor,
+        f: torch.Tensor,
+        style: torch.Tensor,
+        noise: torch.Tensor,
+    ) -> torch.Tensor:
+        i = x
+        h = self.hints_peprocess(h)
+        
+        x0 = self.encoder0(x)
+        x1 = self.encoder1(x0)
+        x2 = self.encoder2(x1)
+        x3 = self.encoder3(torch.cat([x2, h], dim=1))
+        x4 = self.encoder4(x3)
 
-#         self.downsample = nn.ModuleList([
-#             pt2_blocks.DownsampleBlock(
-#                 ichannels, ochannels, downsample=i > 0,
-#             ) for i, (ichannels, ochannels) in enumerate(iochannels)
-#         ])
+        x, rgb = self.decoder4(torch.cat([x4, f], dim=1), None, style, noise)
+        x, rgb = self.decoder3(torch.cat([x, x3], dim=1), rgb, style, noise)
+        x, rgb = self.decoder2(torch.cat([x, x2], dim=1), rgb, style, noise)
+        x, _ = self.decoder1(torch.cat([x, x1], dim=1), rgb, style, noise)
 
-#         self.affine = nn.ModuleList([
-#             nn.Conv2d(channel, channel, kernel_size=1, bias=False)
-#             for channel in self.channels
-#         ])
+        x = self.out(torch.cat([x, x0], dim=1))
 
-#         self.upsample = nn.ModuleList([
-#             pt2_blocks.UpsampleBlock(
-#                 latent_dim, ichannels, ochannels,
-#                 upsample=i > 0, upsample_rgb=i < (len(self.channels) - 1),
-#             ) for i, (ochannels, ichannels) in enumerate(iochannels[::-1])
-#         ])
-
-#     def forward(
-#         self,
-#         x: torch.Tensor,
-#         style: torch.Tensor,
-#         noise: torch.Tensor,
-#         h: torch.Tensor = None,
-#         f: torch.Tensor = None,
-#     ) -> torch.Tensor:
-#         residual = x
-#         x = self.preprocess(x)
-
-#         affines: List[torch.Tensor] = []
-#         for i, (down, affine) in enumerate(zip(self.downsample, self.affine)):
-#             x = down(x)
-#             affines.append(affine(x))
-#             # if i == n: x = torch.cat([x, h], dim=1)
-
-#         # torch.cat([x, f], dim=1)
-#         rgb = None
-#         for i, up in enumerate(self.upsample):
-#             affine = affines[len(affines) - i - 1]
-#             x, rgb = up(x, rgb, style, noise)
-
-#         return residual + rgb
+        return i + x
 
 
 class Discriminator(nn.Module):
@@ -70,7 +81,7 @@ class Discriminator(nn.Module):
         super(Discriminator, self).__init__()
         self.capacity = capacity
         c1, c2, c4, c8 = [capacity * i for i in [1, 2, 4, 8]]
-        cf = c4 + 512
+        cf = c4 + 512  # Illustration2Vec Injection
 
         self.encoder1 = nn.Sequential(
             nn.Conv2d(3, c1, kernel_size=7, stride=1, padding=3, bias=False),
@@ -118,11 +129,18 @@ class Discriminator(nn.Module):
 
 
 if __name__ == '__main__':
-    x = torch.rand((2, 3, 512, 512))
-    z = torch.rand((2, 32))
-    n = torch.rand((2, 1, 512, 512))
-    f = torch.rand((2, 512, 32, 32))
+    x = torch.rand((2, 3, 512, 512)).cuda()  # Illustration
+    z = torch.rand((2, 32)).cuda()           # Style
+    n = torch.rand((2, 1, 512, 512)).cuda()  # Noise
+    f = torch.rand((2, 512, 32, 32)).cuda()  # Illustration2Vec Features
+    h = torch.rand((2, 4, 128, 128)).cuda()  # Hints
 
-    # out = Generator(latent_dim=32)(x, z, n)
-    pred = Discriminator()(x, f)
-    print(pred.size())
+    capacity = 64
+    G = Generator(latent_dim=32, capacity=capacity).cuda()
+    D = Discriminator(capacity=capacity).cuda()
+
+    fake = G(x, h, f, z, n)
+    pred = D(fake, f)
+    
+    print("Fake:", tuple(fake.size()))
+    print("Pred:", tuple(pred.size()))
