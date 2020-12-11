@@ -137,45 +137,46 @@ class UpsampleBlock(nn.Module):
         return x, rgb
 
 
-class DownsampleBlock(nn.Module):
+class ResNetXtBootleneck(nn.Module):
     def __init__(
         self,
         ichannels: int,
         ochannels: int,
-        downsample: bool = True,
+        cardinality: int,
+        stride: int = 1,
+        dilate: int = 1,
     ) -> None:
-        super(DownsampleBlock, self).__init__()
-        self.conv_residual = nn.Conv2d(
-            ichannels,
-            ochannels,
-            kernel_size=1,
-            stride=2 if downsample else 1,
+        super(ResNetXtBootleneck, self).__init__()
+        hchannels = ochannels // 2
+        
+        self.reduce = nn.Conv2d(
+            ichannels, hchannels, kernel_size=1, stride=1, bias=False,
         )
 
-        self.layers = nn.Sequential(
-            nn.Conv2d(ichannels, ochannels, kernel_size=3, padding=1),
-            nn.LeakyReLU(2, inplace=True),
-            nn.Conv2d(ochannels, ochannels, kernel_size=3, padding=1),
-            nn.LeakyReLU(2, inplace=True),
+        self.conv = nn.Conv2d(
+            hchannels, hchannels,
+            kernel_size=2 + stride,
+            stride=stride,
+            padding=dilate,
+            groups=cardinality,
+            bias=False,
         )
-
-        self.downsample = nn.Conv2d(
-            ochannels,
-            ochannels,
-            kernel_size=3,
-            stride=2,
-            padding=1,
-        ) if downsample else None
+        
+        self.expand = nn.Conv2d(
+            hchannels, ochannels, kernel_size=1, stride=1, bias=False,
+        )
+        
+        self.shortcut = nn.AvgPool2d(2, stride=stride) if stride > 1 else None
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        residual = self.conv_residual(x)
-        x = self.layers(x)
-        
-        if self.downsample is not None:
-            x = self.downsample(x)
+        bottleneck = self.reduce(x)
+        bottleneck = self.conv(bottleneck)
+        bottleneck = self.expand(bottleneck)
 
-        x = (x + residual) / np.sqrt(2)
-        return x
+        if self.shortcut is not None:
+            bottleneck = bottleneck + self.shortcut(x)
+        
+        return bottleneck
 
 
 if __name__ == "__main__":
