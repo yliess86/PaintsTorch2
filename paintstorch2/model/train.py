@@ -3,10 +3,9 @@ if __name__ == "__main__":
     from torch.optim import AdamW
     from typing import List, Union
 
-    import importlib_resources as ir
+    import paintstorch2.model as pt2_model
     import paintstorch2.model.loss as pt2_loss
     import paintstorch2.model.network as pt2_net
-    import paintstorch2.model.res as pt2_res
     import torch
     import torch.nn as nn
     import torch.nn.functional as F
@@ -30,15 +29,12 @@ if __name__ == "__main__":
             for param in e.parameters():
                 param.requires_grad = False
 
-
-    ILLUSTRATION2VEC = "illustration2vec.ts"
-    VGG16 = "vgg16.ts"
     
     LATENT_DIM = 32
     CAPACITY = 16
 
-    F1 = torch.jit.load(str(ir.files(pt2_res).joinpath(ILLUSTRATION2VEC)))
-    F2 = torch.jit.load(str(ir.files(pt2_res).joinpath(VGG16)))
+    F1 = torch.jit.load(pt2_model.ILLUSTRATION2VEC)
+    F2 = torch.jit.load(pt2_model.VGG16)
     
     S = pt2_net.Embedding(LATENT_DIM)
     G = pt2_net.Generator(LATENT_DIM, CAPACITY)
