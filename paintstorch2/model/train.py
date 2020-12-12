@@ -12,9 +12,23 @@ if __name__ == "__main__":
     import torch.nn.functional as F
 
 
-    def to_cuda(l: List[Union[nn.Module, torch.Tensor]]) -> None:
-        for e in l:
+    def to_cuda(*args: List[Union[nn.Module, torch.Tensor]]) -> None:
+        for e in args:
             e.cuda()
+
+
+    def to_train(*args: List[nn.Module]) -> None:
+        for e in args:
+            e.train()
+            for param in e.parameters():
+                param.requires_grad = True
+
+
+    def to_eval(*args: List[nn.Module]) -> None:
+        for e in args:
+            e.eval()
+            for param in e.parameters():
+                param.requires_grad = False
 
 
     ILLUSTRATION2VEC = "illustration2vec.ts"
@@ -31,3 +45,5 @@ if __name__ == "__main__":
     D = pt2_net.Discriminator(CAPACITY)
 
     to_cuda(F1, F2, S, G, D)
+    to_train(F1, F2, S, G, D)
+    to_eval(F1, F2, S, G, D)
