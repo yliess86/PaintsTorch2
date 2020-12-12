@@ -5,6 +5,25 @@ import paintstorch2.model.blocks as pt2_blocks
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import torchvision.models as models
+
+
+class Embedding(nn.Module):
+    def __init__(self, latent_dim: int) -> None:
+        super(Embedding, self).__init__()
+        self.latent_dim = latent_dim
+        self.vgg16 = models.vgg16(pretrained=True)
+        self.vgg16.classifier[6] = nn.Linear(4096, latent_dim)
+
+        self.register_buffer("mean",
+            torch.FloatTensor([0.485, 0.456, 0.406]).view(1, 3, 1, 1) - 0.5,
+        )
+        self.register_buffer("std",
+            torch.FloatTensor([0.229, 0.224, 0.225]).view(1, 3, 1, 1),
+        )
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return self.vgg16(((x * 0.5) - self.mean) / self.std)
 
 
 class Generator(nn.Module):
@@ -130,17 +149,21 @@ class Discriminator(nn.Module):
 
 if __name__ == '__main__':
     x = torch.rand((2, 3, 512, 512)).cuda()  # Illustration
-    z = torch.rand((2, 32)).cuda()           # Style
     n = torch.rand((2, 1, 512, 512)).cuda()  # Noise
     f = torch.rand((2, 512, 32, 32)).cuda()  # Illustration2Vec Features
     h = torch.rand((2, 4, 128, 128)).cuda()  # Hints
 
-    capacity = 64
-    G = Generator(latent_dim=32, capacity=capacity).cuda()
+    latent_dim = 32
+    capacity = 16
+
+    S = Embedding(latent_dim=latent_dim).cuda()
+    G = Generator(latent_dim=latent_dim, capacity=capacity).cuda()
     D = Discriminator(capacity=capacity).cuda()
 
+    z = S(x)
     fake = G(x, h, f, z, n)
     pred = D(fake, f)
     
-    print("Fake:", tuple(fake.size()))
-    print("Pred:", tuple(pred.size()))
+    print("Style:", tuple(z.size()))
+    print("Fake :", tuple(fake.size()))
+    print("Pred :", tuple(pred.size()))
