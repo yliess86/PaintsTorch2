@@ -27,7 +27,9 @@ class Embedding(nn.Module):
 
 
 class Generator(nn.Module):
-    def __init__(self, latent_dim: int, capacity: int = 64) -> None:
+    def __init__(
+        self, latent_dim: int, capacity: int = 64, ichannels: int = 4,
+    ) -> None:
         super(Generator, self).__init__()
         self.latent_dim = latent_dim
         c0 = capacity // 2
@@ -41,7 +43,7 @@ class Generator(nn.Module):
         )
 
         self.encoder0 = nn.Sequential(
-            nn.Conv2d(3, c0, kernel_size=3, stride=1, padding=1),
+            nn.Conv2d(ichannels, c0, kernel_size=3, stride=1, padding=1),
             nn.LeakyReLU(0.2, inplace=True),
         )
         self.encoder1 = nn.Sequential(
@@ -76,7 +78,6 @@ class Generator(nn.Module):
         style: torch.Tensor,
         noise: torch.Tensor,
     ) -> torch.Tensor:
-        i = x
         h = self.hints_peprocess(h)
         
         x0 = self.encoder0(x)
@@ -92,7 +93,7 @@ class Generator(nn.Module):
 
         x = self.out(torch.cat([x, x0], dim=1))
 
-        return i + x
+        return x
 
 
 class Discriminator(nn.Module):
@@ -145,25 +146,3 @@ class Discriminator(nn.Module):
         x = self.encoder2(torch.cat([x, f], dim=1))
         x = self.logits(x)
         return x.view(x.size(0), -1)
-
-
-if __name__ == '__main__':
-    x = torch.rand((2, 3, 512, 512)).cuda()  # Illustration
-    n = torch.rand((2, 1, 512, 512)).cuda()  # Noise
-    f = torch.rand((2, 512, 32, 32)).cuda()  # Illustration2Vec Features
-    h = torch.rand((2, 4, 128, 128)).cuda()  # Hints
-
-    latent_dim = 32
-    capacity = 16
-
-    S = Embedding(latent_dim=latent_dim).cuda()
-    G = Generator(latent_dim=latent_dim, capacity=capacity).cuda()
-    D = Discriminator(capacity=capacity).cuda()
-
-    z = S(x)
-    fake = G(x, h, f, z, n)
-    pred = D(fake, f)
-    
-    print("Style:", tuple(z.size()))
-    print("Fake :", tuple(fake.size()))
-    print("Pred :", tuple(pred.size()))
