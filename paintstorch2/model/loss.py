@@ -15,7 +15,9 @@ class GradientPenalty(nn.Module):
         fake: torch.Tensor,
         f: torch.Tensor,
     ) -> torch.Tensor:
-        α = torch.rand()
+        α = torch.rand((real.size(0), 1, 1, 1))
+        if real.is_cuda:
+            α = α.cuda()
         
         t = α * real - (1 - α) * fake
         t.requires_grad = True

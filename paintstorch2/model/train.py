@@ -1,6 +1,7 @@
 if __name__ == "__main__":
     from torch.utils.data import DataLoader
     from torch.optim import AdamW
+    from tqdm import tqdm
     from typing import List, Union
 
     import paintstorch2.data.color as pt2_color
@@ -35,11 +36,17 @@ if __name__ == "__main__":
                 param.requires_grad = False
 
 
-    LATENT_DIM = 8
+    LATENT_DIM = 4
     CAPACITY = 16
 
     DATASET = "dataset"
     BATCH_SIZE = 2
+
+    LR = 1e-4
+    BETAS = 0.5, 0.9
+    DRIFT = 1e-3
+    ADWD = 1e-4
+    GPW = 10
 
     dataset = pt2_dataset.ModularPaintsTorch2Dataset(pt2_dataset.Modules(
         color=pt2_color.kMeansColorSimplifier((5, 15)),
@@ -57,11 +64,19 @@ if __name__ == "__main__":
     G = pt2_net.Generator(LATENT_DIM, CAPACITY)
     D = pt2_net.Discriminator(CAPACITY)
 
-    to_cuda(F1, F2, S, G, D)
-    to_train(F1, F2, S, G, D)
-    to_eval(F1, F2, S, G, D)
+    GP = pt2_loss.GradientPenalty(D, GPW)
+    MSE = nn.MSELoss()
 
-    for artist_id, composition, hints, style, illustration in loader:
+    to_cuda(F1, F2, S, G, D, GP, MSE)
+    to_eval(F1, F2)
+
+    GS_parameters = list(G.parameters()) + list(S.parameters())
+    optim_GS = AdamW(GS_parameters, lr=LR, betas=BETAS)
+    optim_D = AdamW(D.parameters(), lr=LR, betas=BETAS)
+
+    pbar = tqdm(loader, desc="Batch")
+    for batch in pbar:
+        artist_id, composition, hints, style, illustration = batch
         b, c, h, w = composition.size()
 
         artist_id = artist_id.cuda()
@@ -71,28 +86,65 @@ if __name__ == "__main__":
         illustration = illustration.cuda()
         noise = torch.rand((b, 1, h, w)).cuda()
 
-        print("====== INPUTS")
-        print("artist_id   ", tuple(artist_id.size()))
-        print("composition ", tuple(composition.size()))
-        print("hints       ", tuple(hints.size()))
-        print("style       ", tuple(style.size()))
-        print("illustration", tuple(illustration.size()))
-        print("noise       ", tuple(noise.size()))
+        # =============
+        # DISCRIMINATOR
+        # =============
+        pbar.set_description("Batch Discriminator")
 
-        features = F1(composition[:, :3])
-        style = S(style)
+        to_train(D)
+        to_eval(S, G)
+        optim_GS.zero_grad()
+        optim_D.zero_grad()
 
-        fake = G(composition, hints, features, style, noise)
+        with torch.no_grad():
+            features = F1(composition[:, :3])
+            style_embedding = S(style)
+            
+            fake = G(composition, hints, features, style_embedding, noise)
+            fake = composition[:, :3] + fake * composition[:, :-1]
+
+        𝓛_discriminator_fake = D(fake, features).mean(0).view(1)
+        𝓛_discriminator_fake.backward(retain_graph=True)
+        
+        𝓛_discriminator_real = D(illustration, features).mean(0).view(1)
+        𝓛_discriminator = 𝓛_discriminator_fake - 𝓛_discriminator_real
+
+        𝓛_discriminator_realer = (
+            -1 * 𝓛_discriminator_real + (𝓛_discriminator_real ** 2) * DRIFT
+        )
+        𝓛_discriminator_realer.backward(retain_graph=True)
+        
+        𝓛_gradient_penalty = GP(illustration, fake, features)
+        𝓛_gradient_penalty.backward()
+
+        optim_D.step()
+
+        # =========
+        # GENERATOR
+        # =========
+        pbar.set_description("Batch Generator")
+
+        to_train(S, G)
+        to_eval(D)
+        optim_GS.zero_grad()
+        optim_D.zero_grad()
+
+        with torch.no_grad():
+            features = F1(composition[:, :3])
+        
+        style_embedding = S(style)
+        fake = G(composition, hints, features, style_embedding, noise)
         fake = composition[:, :3] + fake * composition[:, :-1]
 
-        pred_fake = D(fake, features)
-        pred_real = D(illustration, features)
+        𝓛_discriminator = D(fake, features)
+        𝓛_generator = -𝓛_discriminator.mean() * ADWD
+        𝓛_generator.backward(retain_graph=True)
 
-        print("====== OUTPUTS")
-        print("features    ", tuple(features.size()))
-        print("style       ", tuple(style.size()))
-        print("fake        ", tuple(fake.size()))
-        print("pred_fake   ", tuple(pred_fake.size()))
-        print("pred_real   ", tuple(pred_real.size()))
+        features1 = F2(fake)
+        with torch.no_grad():
+            features2 = F2(illustration)
 
-        break
+        𝓛_content = MSE(features1, features2)
+        𝓛_content.backward()
+
+        optim_GS.step()
