@@ -35,6 +35,8 @@
 - [ ] Training Pipeline
     - [x] Classic cWGAN-GP Training Pipeline
     - [ ] StyleGAN2 Path Penalty
+    - [ ] Use DataParallel
+    - [ ] Use `torch.cuda.amp` for Autamatic Mixed Precision
 
 **Metrics**
 
