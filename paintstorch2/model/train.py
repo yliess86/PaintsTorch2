@@ -42,11 +42,11 @@ if __name__ == "__main__":
     DATASET = "dataset"
     BATCH_SIZE = 2
 
-    LR = 1e-4
-    BETAS = 0.5, 0.9
-    DRIFT = 1e-3
-    ADWD = 1e-4
-    GPW = 10
+    α = 1e-4        # AdamW Learning Rate
+    β = 0.5, 0.9    # AdamW Betas
+    ε_drift = 1e-3  # Discriminator Drifiting
+    λ1 = 1e-4       # Adversarial Loss Weight
+    λ2 = 10         # Gradient Penalty Weight
 
     dataset = pt2_dataset.ModularPaintsTorch2Dataset(pt2_dataset.Modules(
         color=pt2_color.kMeansColorSimplifier((5, 15)),
@@ -64,15 +64,15 @@ if __name__ == "__main__":
     G = pt2_net.Generator(LATENT_DIM, CAPACITY)
     D = pt2_net.Discriminator(CAPACITY)
 
-    GP = pt2_loss.GradientPenalty(D, GPW)
+    GP = pt2_loss.GradientPenalty(D, λ2)
     MSE = nn.MSELoss()
 
     to_cuda(F1, F2, S, G, D, GP, MSE)
     to_eval(F1, F2)
 
     GS_parameters = list(G.parameters()) + list(S.parameters())
-    optim_GS = AdamW(GS_parameters, lr=LR, betas=BETAS)
-    optim_D = AdamW(D.parameters(), lr=LR, betas=BETAS)
+    optim_GS = AdamW(GS_parameters, lr=α, betas=β)
+    optim_D = AdamW(D.parameters(), lr=α, betas=β)
 
     pbar = tqdm(loader, desc="Batch")
     for batch in pbar:
@@ -103,19 +103,16 @@ if __name__ == "__main__":
             fake = G(composition, hints, features, style_embedding, noise)
             fake = composition[:, :3] + fake * composition[:, :-1]
 
-        𝓛_discriminator_fake = D(fake, features).mean(0).view(1)
-        𝓛_discriminator_fake.backward(retain_graph=True)
+        𝓛_D_fake = D(fake, features).mean(0).view(1)
+        𝓛_D_fake.backward(retain_graph=True)
         
-        𝓛_discriminator_real = D(illustration, features).mean(0).view(1)
-        𝓛_discriminator = 𝓛_discriminator_fake - 𝓛_discriminator_real
-
-        𝓛_discriminator_realer = (
-            -1 * 𝓛_discriminator_real + (𝓛_discriminator_real ** 2) * DRIFT
-        )
-        𝓛_discriminator_realer.backward(retain_graph=True)
+        𝓛_D_real = D(illustration, features).mean(0).view(1)
+        𝓛_D_drift = ε_drift * (𝓛_D_real ** 2)
+        𝓛_D = -1 * 𝓛_D_real + 𝓛_D_drift
+        𝓛_D.backward(retain_graph=True)
         
-        𝓛_gradient_penalty = GP(illustration, fake, features)
-        𝓛_gradient_penalty.backward()
+        𝓛_GP = GP(illustration, fake, features)
+        𝓛_GP.backward()
 
         optim_D.step()
 
@@ -136,9 +133,9 @@ if __name__ == "__main__":
         fake = G(composition, hints, features, style_embedding, noise)
         fake = composition[:, :3] + fake * composition[:, :-1]
 
-        𝓛_discriminator = D(fake, features)
-        𝓛_generator = -𝓛_discriminator.mean() * ADWD
-        𝓛_generator.backward(retain_graph=True)
+        𝓛_D = D(fake, features).mean()
+        𝓛_G = -λ1 * 𝓛_D
+        𝓛_G.backward(retain_graph=True)
 
         features1 = F2(fake)
         with torch.no_grad():
