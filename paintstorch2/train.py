@@ -95,17 +95,14 @@ if __name__ == "__main__":
             
             fake = G(composition, hints, features, style_embedding, noise)
             fake = composition[:, :3] + fake * composition[:, :-1]
+        
+        𝓛_fake = D(fake, features).mean(0).view(1)
+        𝓛_real = D(illustration, features).mean(0).view(1)
+        𝓛_critic = 𝓛_fake - 𝓛_real
+        𝓛_p = GP(illustration, fake, features) + ε_drift * (𝓛_real ** 2)
 
-        𝓛_D_fake = D(fake, features).mean(0).view(1)
-        𝓛_D_fake.backward(retain_graph=True)
-        
-        𝓛_D_real = D(illustration, features).mean(0).view(1)
-        𝓛_D_drift = ε_drift * (𝓛_D_real ** 2)
-        𝓛_D = -1 * 𝓛_D_real + 𝓛_D_drift
-        𝓛_D.backward(retain_graph=True)
-        
-        𝓛_GP = GP(illustration, fake, features)
-        𝓛_GP.backward()
+        𝓛_D = 𝓛_critic + 𝓛_p
+        𝓛_D.backward()
 
         optim_D.step()
 
@@ -126,15 +123,14 @@ if __name__ == "__main__":
         fake = G(composition, hints, features, style_embedding, noise)
         fake = composition[:, :3] + fake * composition[:, :-1]
 
-        𝓛_D = D(fake, features).mean()
-        𝓛_G = -λ1 * 𝓛_D
-        𝓛_G.backward(retain_graph=True)
-
         features1 = F2(fake)
         with torch.no_grad():
             features2 = F2(illustration)
 
+        𝓛_adv = - D(fake, features).mean()
         𝓛_content = MSE(features1, features2)
-        𝓛_content.backward()
+
+        𝓛_G = 𝓛_content + λ1 * 𝓛_adv
+        𝓛_G.backward()
 
         optim_GS.step()
