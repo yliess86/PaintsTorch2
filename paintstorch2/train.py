@@ -6,6 +6,7 @@ if __name__ == "__main__":
     from typing import List, Union
 
     import argparse
+    import multiprocessing
     import os
     import paintstorch2.data as pt2_data
     import paintstorch2.model as pt2_model
@@ -43,9 +44,9 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if not os.path.exists(args.checkpoints):
-        os.path.makedirs(args.checkpoints, exist_ok=True)
+        os.makedirs(args.checkpoints, exist_ok=True)
     if not os.path.exists(args.tensorboards):
-        os.path.makedirs(args.tensorboards, exist_ok=True)
+        os.makedirs(args.tensorboards, exist_ok=True)
 
     writer = SummaryWriter(log_dir=args.tensorboards)
 
@@ -62,7 +63,7 @@ if __name__ == "__main__":
         mask=pt2_data.kMeansMaskGenerator((2, 10)),
     ), args.dataset, False)
 
-    n = 2
+    n = multiprocessing.cpu_count()
     loader = DataLoader(dataset, args.batch_size, shuffle=False, num_workers=n)
 
     F1 = torch.jit.load(pt2_model.ILLUSTRATION2VEC)
@@ -169,28 +170,33 @@ if __name__ == "__main__":
 
         to_eval(S, G, D)
         
-        _, composition, hints, style, illustration = dataset[0]
+        _, composition, hints, style, illustration = dataset[7]
+        c, h, w = composition.size()
+
         composition = composition.unsqueeze(0).cuda()
         hints = hints.unsqueeze(0).cuda()
         style = style.unsqueeze(0).cuda()
         illustration = illustration.unsqueeze(0).cuda()
+        noise = torch.rand((1, 1, h, w)).cuda()
 
-        style_embedding = S(style)
-        fake = G(composition, hints, features, style_embedding, noise)
-        fake = composition[:, :3] + fake * composition[:, :-1]
+        with torch.no_grad():
+            features = F1(composition[:, :3])
+            style_embedding = S(style)
+            fake = G(composition, hints, features, style_embedding, noise)
+            fake = composition[:, :3] + fake * composition[:, :-1]
 
-        composition = composition.squeeze(0).permute((1, 2, 0)).cpu()
-        hints = hints.squeeze(0).permute((1, 2, 0)).cpu()
-        style = style.squeeze(0).permute((1, 2, 0)).cpu()
-        illustration = illustration.squeeze(0).permute((1, 2, 0)).cpu()
-        fake = fake.squeeze(0).permute((1, 2, 0)).cpu()
+        composition = composition.squeeze(0).cpu()
+        hints = hints.squeeze(0).cpu()
+        style = style.squeeze(0).cpu()
+        illustration = illustration.squeeze(0).cpu()
+        fake = fake.squeeze(0).cpu()
 
-        writer.add_image("composition/color", composition[:, :, :3], epoch)
-        writer.add_image("composition/mask", composition[:, :, -1], epoch)
-        writer.add_image("hints/color", hints[:, :, :3], epoch)
-        writer.add_image("hints/mask", hints[:, :, -1], epoch)
+        writer.add_image("composition/color", composition[:3], epoch)
+        writer.add_image("composition/mask", composition[None, -1], epoch)
+        writer.add_image("hints/color", hints[:3], epoch)
+        writer.add_image("hints/mask", hints[None, -1], epoch)
         writer.add_image("style", style, epoch)
-        writer.add_image("illustration", style, epoch)
+        writer.add_image("illustration", illustration, epoch)
 
         torch.save({
             "args": vars(args),
