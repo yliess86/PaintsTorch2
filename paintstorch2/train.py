@@ -4,17 +4,10 @@ if __name__ == "__main__":
     from tqdm import tqdm
     from typing import List, Union
 
-    import paintstorch2.data.color as pt2_color
-    import paintstorch2.data.dataset as pt2_dataset
-    import paintstorch2.data.hints as pt2_hints
-    import paintstorch2.data.lineart as pt2_lineart
-    import paintstorch2.data.mask as pt2_mask
+    import paintstorch2.data as pt2_data
     import paintstorch2.model as pt2_model
-    import paintstorch2.model.loss as pt2_loss
-    import paintstorch2.model.network as pt2_net
     import torch
     import torch.nn as nn
-    import torch.nn.functional as F
 
 
     def to_cuda(*args: List[Union[nn.Module, torch.Tensor]]) -> None:
@@ -48,11 +41,11 @@ if __name__ == "__main__":
     λ1 = 1e-4       # Adversarial Loss Weight
     λ2 = 10         # Gradient Penalty Weight
 
-    dataset = pt2_dataset.ModularPaintsTorch2Dataset(pt2_dataset.Modules(
-        color=pt2_color.kMeansColorSimplifier((5, 15)),
-        hints=pt2_hints.RandomHintsGenerator(),
-        lineart=pt2_lineart.xDoGLineartGenerator(),
-        mask=pt2_mask.kMeansMaskGenerator((2, 10)),
+    dataset = pt2_data.ModularPaintsTorch2Dataset(pt2_data.Modules(
+        color=pt2_data.kMeansColorSimplifier((5, 15)),
+        hints=pt2_data.RandomHintsGenerator(),
+        lineart=pt2_data.xDoGLineartGenerator(),
+        mask=pt2_data.kMeansMaskGenerator((2, 10)),
     ), DATASET, False)
 
     loader = DataLoader(dataset, BATCH_SIZE, shuffle=False, num_workers=2)
@@ -60,11 +53,11 @@ if __name__ == "__main__":
     F1 = torch.jit.load(pt2_model.ILLUSTRATION2VEC)
     F2 = torch.jit.load(pt2_model.VGG16)
     
-    S = pt2_net.Embedding(LATENT_DIM)
-    G = pt2_net.Generator(LATENT_DIM, CAPACITY)
-    D = pt2_net.Discriminator(CAPACITY)
+    S = pt2_model.Embedding(LATENT_DIM)
+    G = pt2_model.Generator(LATENT_DIM, CAPACITY)
+    D = pt2_model.Discriminator(CAPACITY)
 
-    GP = pt2_loss.GradientPenalty(D, λ2)
+    GP = pt2_model.GradientPenalty(D, λ2)
     MSE = nn.MSELoss()
 
     to_cuda(F1, F2, S, G, D, GP, MSE)
