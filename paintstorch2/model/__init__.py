@@ -1,4 +1,4 @@
-from paintstorch2.model.loss import GradientPenalty 
+from paintstorch2.model.loss import GradientPenalty
 from paintstorch2.model.network import Discriminator, Embedding, Generator
 
 import importlib_resources as ir
