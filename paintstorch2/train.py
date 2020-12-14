@@ -5,6 +5,7 @@ if __name__ == "__main__":
     from typing import List, Union
 
     import argparse
+    import os
     import paintstorch2.data as pt2_data
     import paintstorch2.model as pt2_model
     import torch
@@ -36,7 +37,11 @@ if __name__ == "__main__":
     parser.add_argument("--epochs",     type=int, default=200)
     parser.add_argument("--batch_size", type=int, default=32)
     parser.add_argument("--dataset",    type=str, default="dataset")
+    parser.add_argument("--save",       type=str, default="checkpoints")
     args = parser.parse_args()
+
+    if not os.path.exists(args.save):
+        os.path.makedirs(args.save, exist_ok=True)
 
     α = 1e-4        # AdamW Learning Rate
     β = 0.5, 0.9    # AdamW Betas
@@ -155,4 +160,6 @@ if __name__ == "__main__":
             "S": S.state_dict(),
             "G": G.state_dict(),
             "D": D.state_dict(),
-        }, f"paintstorch2_{epoch:0{len(str(args.epochs))}d}.pth")
+        }, os.path.join(
+            args.save, f"paintstorch2_{epoch:0{len(str(args.epochs))}d}.pth",
+        ))
