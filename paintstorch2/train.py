@@ -1,6 +1,7 @@
 if __name__ == "__main__":
     from torch.utils.data import DataLoader
     from torch.optim import AdamW
+    from torch.utils.tensorboard import SummaryWriter
     from tqdm import tqdm
     from typing import List, Union
 
@@ -32,16 +33,21 @@ if __name__ == "__main__":
 
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--latent_dim", type=int, default=128)
-    parser.add_argument("--capacity",   type=int, default=64)
-    parser.add_argument("--epochs",     type=int, default=200)
-    parser.add_argument("--batch_size", type=int, default=32)
-    parser.add_argument("--dataset",    type=str, default="dataset")
-    parser.add_argument("--save",       type=str, default="checkpoints")
+    parser.add_argument("--latent_dim",   type=int, default=128)
+    parser.add_argument("--capacity",     type=int, default=64)
+    parser.add_argument("--epochs",       type=int, default=200)
+    parser.add_argument("--batch_size",   type=int, default=32)
+    parser.add_argument("--dataset",      type=str, default="dataset")
+    parser.add_argument("--checkpoints",  type=str, default="checkpoints")
+    parser.add_argument("--tensorboards", type=str, default="tensorboards")
     args = parser.parse_args()
 
-    if not os.path.exists(args.save):
-        os.path.makedirs(args.save, exist_ok=True)
+    if not os.path.exists(args.checkpoints):
+        os.path.makedirs(args.checkpoints, exist_ok=True)
+    if not os.path.exists(args.tensorboards):
+        os.path.makedirs(args.tensorboards, exist_ok=True)
+
+    writer = SummaryWriter(log_dir=args.tensorboards)
 
     α = 1e-4        # AdamW Learning Rate
     β = 0.5, 0.9    # AdamW Betas
@@ -150,10 +156,41 @@ if __name__ == "__main__":
             optim_GS.step()
             total_𝓛_G += 𝓛_G.item() / len(loader)
 
-            # =======
-            # LOGGING
-            # =======
+            # =============
+            # BATCH LOGGING
+            # =============
             pbar.set_postfix(𝓛_D=total_𝓛_D, 𝓛_G=total_𝓛_G)
+
+        # =============
+        # EPOCH LOGGING
+        # =============
+        writer.add_scalar("𝓛_D", total_𝓛_D, epoch)
+        writer.add_scalar("𝓛_G", total_𝓛_G, epoch)
+
+        to_eval(S, G, D)
+        
+        _, composition, hints, style, illustration = dataset[0]
+        composition = composition.unsqueeze(0).cuda()
+        hints = hints.unsqueeze(0).cuda()
+        style = style.unsqueeze(0).cuda()
+        illustration = illustration.unsqueeze(0).cuda()
+
+        style_embedding = S(style)
+        fake = G(composition, hints, features, style_embedding, noise)
+        fake = composition[:, :3] + fake * composition[:, :-1]
+
+        composition = composition.squeeze(0).permute((1, 2, 0)).cpu()
+        hints = hints.squeeze(0).permute((1, 2, 0)).cpu()
+        style = style.squeeze(0).permute((1, 2, 0)).cpu()
+        illustration = illustration.squeeze(0).permute((1, 2, 0)).cpu()
+        fake = fake.squeeze(0).permute((1, 2, 0)).cpu()
+
+        writer.add_image("composition/color", composition[:, :, :3], epoch)
+        writer.add_image("composition/mask", composition[:, :, -1], epoch)
+        writer.add_image("hints/color", hints[:, :, :3], epoch)
+        writer.add_image("hints/mask", hints[:, :, -1], epoch)
+        writer.add_image("style", style, epoch)
+        writer.add_image("illustration", style, epoch)
 
         torch.save({
             "args": vars(args),
@@ -161,5 +198,6 @@ if __name__ == "__main__":
             "G": G.state_dict(),
             "D": D.state_dict(),
         }, os.path.join(
-            args.save, f"paintstorch2_{epoch:0{len(str(args.epochs))}d}.pth",
+            args.checkpoints,
+            f"paintstorch2_{epoch:0{len(str(args.epochs))}d}.pth",
         ))
