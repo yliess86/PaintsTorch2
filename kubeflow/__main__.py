@@ -1,5 +1,5 @@
-from dpt.helper import DVICContainerOperation as Container
-from dpt.helper import DVICPipelineWrapper as Pipeline
+from .dpt.helper import DVICContainerOperation as Container
+from .dpt.helper import DVICPipelineWrapper as Pipeline
 import uuid
 
 from argparse import ArgumentParser
@@ -43,9 +43,10 @@ with Pipeline(PIPELINE_NAME, PIPELINE_DESC, RUN_NAME, EXP_ID, NAMESPACE) as pipe
                                   f'--batch_size {args.batch_size}' +
                                   f'--dataset {DATA_MOUNT_PATH}/dataset' +
                                   f'--checkpoints  {DATA_MOUNT_PATH}/checkpoints' +
-                                  f'--tensorboards {TB_PATH}'
+                                  f'--tensorboards {TB_PATH}',
+                                name = "train"
             )
-            
+
     train.select_node().gpu(args.ngpu) 
     train.mount_host_path(DGX_DATA_PATH, DATA_MOUNT_PATH) 
     train.mount_host_path(DGX_TENSORBOARD_PATH, TB_PATH)
