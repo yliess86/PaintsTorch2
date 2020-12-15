@@ -37,7 +37,7 @@ parser.add_argument("--ngpu",         type=int, default=1)
 args = parser.parse_args()
 
 with Pipeline(PIPELINE_NAME, PIPELINE_DESC, RUN_NAME, EXP_ID, NAMESPACE) as pipeline:
-    train = Container(IMAGE_NAME, *f'--latent_dim {args.latent_dim} --capacity {args.capacity} --epochs {args.epochs} --batch_size {args.batch_size} --dataset {DATA_MOUNT_PATH}/dataset --checkpoints  {DATA_MOUNT_PATH}/checkpoints --tensorboards {TB_PATH}'.split(' '),
+    train = Container(IMAGE_NAME, *f'--latent_dim {args.latent_dim} --capacity {args.capacity} --epochs {args.epochs} --batch_size {args.batch_size} --dataset {DATA_MOUNT_PATH}/dataset --checkpoints {DATA_MOUNT_PATH}/checkpoints --tensorboards {TB_PATH}'.split(' '),
                                 name = "train"
             )
 
