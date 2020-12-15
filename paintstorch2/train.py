@@ -145,14 +145,17 @@ if __name__ == "__main__":
             
             d_fake = fake.detach()
             
-            𝓛_fake = D(d_fake, features).mean(0).view(1)
-            𝓛_real = D(illustration, features).mean(0).view(1)
-            𝓛_critic = 𝓛_fake - 𝓛_real
-            𝓛_p = GP(illustration, d_fake, features) + ε_drift * (𝓛_real ** 2)
+            𝓛_fake = torch.relu(1 + D(d_fake, features).mean(0).view(1))
+            𝓛_fake.backward(retain_graph=True)
 
-            𝓛_D = 𝓛_critic + 𝓛_p
-            𝓛_D.backward()
+            𝓛_real = torch.relu(1 - D(illustration, features).mean(0).view(1))
+            𝓛_real_drift = -𝓛_real + ε_drift * (𝓛_real ** 2)
+            𝓛_real_drift.backward(retain_graph=True)
 
+            𝓛_p = GP(illustration, d_fake, features)
+            𝓛_p.backward()
+
+            𝓛_D = 𝓛_fake + 𝓛_real_drift + 𝓛_p
             optim_D.step()
             total_𝓛_D += 𝓛_D.item() / len(loader)
 
@@ -163,17 +166,18 @@ if __name__ == "__main__":
 
             to_eval(D)
             optim_D.zero_grad()
+            
+            𝓛_adv = -λ1 * D(fake, features).mean()
+            𝓛_adv.backward(retain_graph=True)
 
             features1 = F2(fake)
             with torch.no_grad():
                 features2 = F2(illustration)
 
-            𝓛_adv = -D(fake, features).mean()
             𝓛_content = MSE(features1, features2)
+            𝓛_content.backward()
 
-            𝓛_G = 𝓛_content + λ1 * 𝓛_adv
-            𝓛_G.backward()
-
+            𝓛_G = 𝓛_content + 𝓛_adv
             optim_GS.step()
             total_𝓛_G += 𝓛_G.item() / len(loader)
 
