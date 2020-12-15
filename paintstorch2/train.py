@@ -48,6 +48,9 @@ if __name__ == "__main__":
     if not os.path.exists(args.tensorboards):
         os.makedirs(args.tensorboards, exist_ok=True)
 
+    # =====
+    # SETUP
+    # =====
     writer = SummaryWriter(log_dir=args.tensorboards)
 
     α = 1e-4        # AdamW Learning Rate
@@ -57,14 +60,18 @@ if __name__ == "__main__":
     λ2 = 10         # Gradient Penalty Weight
 
     dataset = pt2_data.ModularPaintsTorch2Dataset(pt2_data.Modules(
-        color=pt2_data.kMeansColorSimplifier((5, 15)),
+        color=pt2_data.kMeansColorSimplifier((5, 10)),
         hints=pt2_data.RandomHintsGenerator(),
         lineart=pt2_data.xDoGLineartGenerator(),
-        mask=pt2_data.kMeansMaskGenerator((2, 10)),
+        mask=pt2_data.kMeansMaskGenerator((2, 5)),
     ), args.dataset, False)
 
-    n = multiprocessing.cpu_count()
-    loader = DataLoader(dataset, args.batch_size, shuffle=False, num_workers=n)
+    loader = DataLoader(
+        dataset,
+        args.batch_size,
+        shuffle=False,
+        num_workers=multiprocessing.cpu_count(),
+    )
 
     F1 = torch.jit.load(pt2_model.ILLUSTRATION2VEC)
     F2 = torch.jit.load(pt2_model.VGG16)
@@ -83,6 +90,25 @@ if __name__ == "__main__":
     optim_GS = AdamW(GS_parameters, lr=α, betas=β)
     optim_D = AdamW(D.parameters(), lr=α, betas=β)
 
+    # ===============
+    # VALIDATION DATA
+    # ===============
+    _, v_composition, v_hints, v_style, v_illustration = dataset[7]
+    c, h, w = v_composition.size()
+
+    v_composition = v_composition.unsqueeze(0).cuda()
+    v_hints = v_hints.unsqueeze(0).cuda()
+    v_style = v_style.unsqueeze(0).cuda()
+    v_illustration = v_illustration.unsqueeze(0).cuda()
+    v_noise = torch.rand((1, 1, h, w)).cuda()
+
+    with torch.no_grad():
+        v_features = F1(v_composition[:, :3])
+    
+    
+    # ========
+    # TRAINING
+    # ========
     for epoch in tqdm(range(args.epochs), desc="Epoch"):
         total_𝓛_D = 0
         total_𝓛_G = 0
@@ -169,26 +195,20 @@ if __name__ == "__main__":
         writer.add_scalar("𝓛_G", total_𝓛_G, epoch)
 
         to_eval(S, G, D)
-        
-        _, composition, hints, style, illustration = dataset[7]
-        c, h, w = composition.size()
-
-        composition = composition.unsqueeze(0).cuda()
-        hints = hints.unsqueeze(0).cuda()
-        style = style.unsqueeze(0).cuda()
-        illustration = illustration.unsqueeze(0).cuda()
-        noise = torch.rand((1, 1, h, w)).cuda()
 
         with torch.no_grad():
-            features = F1(composition[:, :3])
-            style_embedding = S(style)
-            fake = G(composition, hints, features, style_embedding, noise)
-            fake = composition[:, :3] + fake * composition[:, :-1]
+            fake = v_composition[:, :3] + G(
+                v_composition,
+                v_hints,
+                v_features,
+                S(v_style),
+                v_noise,
+            ) * v_composition[:, :-1]
 
-        composition = composition.squeeze(0).cpu()
-        hints = hints.squeeze(0).cpu()
-        style = style.squeeze(0).cpu()
-        illustration = illustration.squeeze(0).cpu()
+        composition = v_composition.squeeze(0).cpu()
+        hints = v_hints.squeeze(0).cpu()
+        style = v_style.squeeze(0).cpu()
+        illustration = v_illustration.squeeze(0).cpu()
         fake = fake.squeeze(0).cpu()
 
         writer.add_image("composition/color", composition[:3], epoch)
