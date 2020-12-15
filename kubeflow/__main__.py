@@ -16,4 +16,5 @@ parser.add_argument("--exp_name",     type=str, default="paintsTorchv2")
 
 args = parser.parse_args()
 
-with Pipeline()
+with Pipeline():
+    écrire des trucs ici
