@@ -124,31 +124,35 @@ if __name__ == "__main__":
             illustration = illustration.cuda()
             noise = torch.rand((b, 1, h, w)).cuda()
 
-            # =============
-            # DISCRIMINATOR
-            # =============
-            pbar.set_description("Batch Discriminator")
-
-            to_train(D)
-            to_eval(S, G)
+            # ======
+            # COMMON
+            # ======
+            to_train(D, S, G)
             optim_GS.zero_grad()
             optim_D.zero_grad()
 
             with torch.no_grad():
                 features = F1(composition[:, :3])
-                style_embedding = S(style)
-                
-                fake = G(composition, hints, features, style_embedding, noise)
-                fake = composition[:, :3] + fake * composition[:, :-1]
             
-            𝓛_fake = D(fake, features).mean(0).view(1)
+            style_embedding = S(style)
+            fake = G(composition, hints, features, style_embedding, noise)
+            fake = composition[:, :3] + fake * composition[:, :-1]
+            
+            # =============
+            # DISCRIMINATOR
+            # =============
+            pbar.set_description("Batch Discriminator")
+            
+            d_fake = fake.detach()
+            
+            𝓛_fake = D(d_fake, features).mean(0).view(1)
             𝓛_fake.backward(retain_graph=True)
 
             𝓛_real = D(illustration, features).mean(0).view(1)
             𝓛_real_drift = -𝓛_real + ε_drift * (𝓛_real ** 2)
             𝓛_real_drift.backward(retain_graph=True)
 
-            𝓛_p = GP(illustration, fake, features)
+            𝓛_p = GP(illustration, d_fake, features)
             𝓛_p.backward()
 
             𝓛_D = 𝓛_fake + 𝓛_real_drift + 𝓛_p
@@ -160,18 +164,9 @@ if __name__ == "__main__":
             # =========
             pbar.set_description("Batch Generator")
 
-            to_train(S, G)
             to_eval(D)
-            optim_GS.zero_grad()
             optim_D.zero_grad()
-
-            with torch.no_grad():
-                features = F1(composition[:, :3])
             
-            style_embedding = S(style)
-            fake = G(composition, hints, features, style_embedding, noise)
-            fake = composition[:, :3] + fake * composition[:, :-1]
-
             𝓛_adv = -λ1 * D(fake, features).mean()
             𝓛_adv.backward(retain_graph=True)
 
