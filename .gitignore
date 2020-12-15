@@ -138,6 +138,6 @@ dmypy.json
 cython_debug/
 
 # Project Ignores
-dataset/
-checkpoints/
-tensorboards/
+/dataset/
+/checkpoints/
+/tensorboards/
