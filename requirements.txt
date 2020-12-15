@@ -1,0 +1,9 @@
+tqdm>=4.43.0
+https://download.pytorch.org/whl/cu102/torch-1.7.0-cp37-cp37m-linux_x86_64.whl
+torchvision>=0.6.0
+numpy>=1.18.1
+scikit-image
+transformers>=3.0.0
+tensorboardX>=2.1
+matplotlib
+scipy
