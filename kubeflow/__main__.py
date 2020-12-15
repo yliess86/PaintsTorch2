@@ -42,7 +42,7 @@ with Pipeline(PIPELINE_NAME, PIPELINE_DESC, RUN_NAME, EXP_ID, NAMESPACE) as pipe
             )
 
     train.select_node().gpu(args.ngpu) 
-    train.mount_host_path(DGX_DATA_PATH, DATA_MOUNT_PATH) 
-    train.mount_host_path(DGX_TENSORBOARD_PATH, TB_PATH)
+    train.mount_host_path(DATA_MOUNT_PATH, DGX_DATA_PATH) 
+    train.mount_host_path(TB_PATH, DGX_TENSORBOARD_PATH)
 
     pipeline()
