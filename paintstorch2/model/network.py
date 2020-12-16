@@ -8,6 +8,9 @@ import torch.nn.functional as F
 import torchvision.models as models
 
 
+SN = lambda conv: nn.utils.spectral_norm(conv)
+
+
 class Embedding(nn.Module):
     def __init__(self, latent_dim: int) -> None:
         super(Embedding, self).__init__()
@@ -38,28 +41,28 @@ class Generator(nn.Module):
         cf = c8 + 512  # Illustration2Vec Injection
 
         self.hints_peprocess = nn.Sequential(
-            nn.Conv2d(4, c1, kernel_size=7, stride=1, padding=3),
+            SN(nn.Conv2d(4, c1, kernel_size=7, stride=1, padding=3)),
             nn.LeakyReLU(0.2, inplace=True),
         )
 
         self.encoder0 = nn.Sequential(
-            nn.Conv2d(ichannels, c0, kernel_size=3, stride=1, padding=1),
+            SN(nn.Conv2d(ichannels, c0, kernel_size=3, stride=1, padding=1)),
             nn.LeakyReLU(0.2, inplace=True),
         )
         self.encoder1 = nn.Sequential(
-            nn.Conv2d(c0, c1, kernel_size=4, stride=2, padding=1),
+            SN(nn.Conv2d(c0, c1, kernel_size=4, stride=2, padding=1)),
             nn.LeakyReLU(0.2, inplace=True),
         )
         self.encoder2 = nn.Sequential(
-            nn.Conv2d(c1, c2, kernel_size=4, stride=2, padding=1),
+            SN(nn.Conv2d(c1, c2, kernel_size=4, stride=2, padding=1)),
             nn.LeakyReLU(0.2, inplace=True),
         )
         self.encoder3 = nn.Sequential(
-            nn.Conv2d(ch, c4, kernel_size=4, stride=2, padding=1),
+            SN(nn.Conv2d(ch, c4, kernel_size=4, stride=2, padding=1)),
             nn.LeakyReLU(0.2, inplace=True),
         )
         self.encoder4 = nn.Sequential(
-            nn.Conv2d(c4, c8, kernel_size=4, stride=2, padding=1),
+            SN(nn.Conv2d(c4, c8, kernel_size=4, stride=2, padding=1)),
             nn.LeakyReLU(0.2, inplace=True),
         )
 
@@ -68,7 +71,9 @@ class Generator(nn.Module):
         self.decoder2 = pt2_blocks.UpsampleBlock(latent_dim, c4 + c2, c2)
         self.decoder1 = pt2_blocks.UpsampleBlock(latent_dim, c2 + c1, c1)
         
-        self.out = nn.Conv2d(c1 + c0, 3, kernel_size=3, stride=1, padding=1)
+        self.out = SN(nn.Conv2d(
+            c1 + c0, 3, kernel_size=3, stride=1, padding=1,
+        ))
 
     def forward(
         self,
@@ -104,19 +109,27 @@ class Discriminator(nn.Module):
         cf = c4 + 512  # Illustration2Vec Injection
 
         self.encoder1 = nn.Sequential(
-            nn.Conv2d(3, c1, kernel_size=7, stride=1, padding=3, bias=False),
+            SN(nn.Conv2d(
+                3, c1, kernel_size=7, stride=1, padding=3, bias=False,
+            )),
             nn.LeakyReLU(0.2, inplace=True),
-            nn.Conv2d(c1, c1, kernel_size=4, stride=2, padding=1, bias=False),
+            SN(nn.Conv2d(
+                c1, c1, kernel_size=4, stride=2, padding=1, bias=False,
+            )),
             nn.LeakyReLU(0.2, inplace=True),
 
             pt2_blocks.ResNetXtBootleneck(c1, c1, cardinality=8, stride=1),
             pt2_blocks.ResNetXtBootleneck(c1, c1, cardinality=8, stride=2),
-            nn.Conv2d(c1, c2, kernel_size=1, bias=False),
+            SN(nn.Conv2d(
+                c1, c2, kernel_size=1, bias=False,
+            )),
             nn.LeakyReLU(0.2, inplace=True),
 
             pt2_blocks.ResNetXtBootleneck(c2, c2, cardinality=8, stride=1),
             pt2_blocks.ResNetXtBootleneck(c2, c2, cardinality=8, stride=2),
-            nn.Conv2d(c2, c4, kernel_size=1, bias=False),
+            SN(nn.Conv2d(
+                c2, c4, kernel_size=1, bias=False,
+            )),
             nn.LeakyReLU(0.2, inplace=True),
 
             pt2_blocks.ResNetXtBootleneck(c4, c4, cardinality=8, stride=1),
@@ -124,7 +137,9 @@ class Discriminator(nn.Module):
         )
 
         self.encoder2 = nn.Sequential(
-            nn.Conv2d(cf, c8, kernel_size=3, stride=1, padding=1, bias=False),
+            SN(nn.Conv2d(
+                cf, c8, kernel_size=3, stride=1, padding=1, bias=False
+            )),
             nn.LeakyReLU(0.2, inplace=True),
 
             pt2_blocks.ResNetXtBootleneck(c8, c8, cardinality=8, stride=1),
@@ -135,11 +150,11 @@ class Discriminator(nn.Module):
             pt2_blocks.ResNetXtBootleneck(c8, c8, cardinality=8, stride=2),
             pt2_blocks.ResNetXtBootleneck(c8, c8, cardinality=8, stride=1),
 
-            nn.Conv2d(c8, c8, kernel_size=4, bias=False),
+            SN(nn.Conv2d(c8, c8, kernel_size=4, bias=False)),
             nn.LeakyReLU(0.2, inplace=True),
         )
 
-        self.logits = nn.Conv2d(c8, 1, kernel_size=1)
+        self.logits = SN(nn.Conv2d(c8, 1, kernel_size=1))
 
     def forward(self, x: torch.Tensor, f: torch.Tensor) -> torch.Tensor:
         x = self.encoder1(x)

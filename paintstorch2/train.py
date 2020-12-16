@@ -34,13 +34,14 @@ if __name__ == "__main__":
 
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--latent_dim",   type=int, default=128)
-    parser.add_argument("--capacity",     type=int, default=64)
-    parser.add_argument("--epochs",       type=int, default=200)
-    parser.add_argument("--batch_size",   type=int, default=32)
-    parser.add_argument("--dataset",      type=str, default="dataset")
-    parser.add_argument("--checkpoints",  type=str, default="checkpoints")
-    parser.add_argument("--tensorboards", type=str, default="tensorboards")
+    parser.add_argument("--latent_dim",    type=int,  default=128)
+    parser.add_argument("--capacity",      type=int,  default=64)
+    parser.add_argument("--epochs",        type=int,  default=200)
+    parser.add_argument("--batch_size",    type=int,  default=16)
+    parser.add_argument("--dataset",       type=str,  default="dataset")
+    parser.add_argument("--checkpoints",   type=str,  default="checkpoints")
+    parser.add_argument("--tensorboards",  type=str,  default="tensorboards")
+    parser.add_argument("--data_parallel", action="store_true")
     args = parser.parse_args()
 
     if not os.path.exists(args.checkpoints):
@@ -66,22 +67,35 @@ if __name__ == "__main__":
         mask=pt2_data.kMeansMaskGenerator((2, 5)),
     ), args.dataset, False)
 
+    batch_factor = torch.cuda.device_count() if args.data_parallel else 1
     loader = DataLoader(
         dataset,
-        args.batch_size,
+        args.batch_size * batch_factor,
         shuffle=False,
         num_workers=multiprocessing.cpu_count(),
     )
 
-    F1 = torch.jit.load(pt2_model.ILLUSTRATION2VEC)
-    F2 = torch.jit.load(pt2_model.VGG16)
-    
-    S = pt2_model.Embedding(args.latent_dim)
-    G = pt2_model.Generator(args.latent_dim, args.capacity)
-    D = pt2_model.Discriminator(args.capacity)
+    if args.data_parallel:
+        F1 = nn.DataParallel(torch.jit.load(pt2_model.ILLUSTRATION2VEC))
+        F2 = nn.DataParallel(torch.jit.load(pt2_model.VGG16))
+        
+        S = nn.DataParallel(pt2_model.Embedding(args.latent_dim))
+        G = nn.DataParallel(pt2_model.Generator(args.latent_dim, args.capacity))
+        D = nn.DataParallel(pt2_model.Discriminator(args.capacity))
 
-    GP = pt2_model.GradientPenalty(D, λ2)
-    MSE = nn.MSELoss()
+        GP = nn.DataParallel(pt2_model.GradientPenalty(D, λ2))
+        MSE = nn.DataParallel(nn.MSELoss())
+    
+    else:
+        F1 = torch.jit.load(pt2_model.ILLUSTRATION2VEC)
+        F2 = torch.jit.load(pt2_model.VGG16)
+        
+        S = pt2_model.Embedding(args.latent_dim)
+        G = pt2_model.Generator(args.latent_dim, args.capacity)
+        D = pt2_model.Discriminator(args.capacity)
+
+        GP = pt2_model.GradientPenalty(D, λ2)
+        MSE = nn.MSELoss()
 
     to_cuda(F1, F2, S, G, D, GP, MSE)
     to_eval(F1, F2)

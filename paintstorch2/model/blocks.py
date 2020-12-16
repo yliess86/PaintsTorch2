@@ -6,6 +6,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
+SN = lambda conv: nn.utils.spectral_norm(conv)
 ε = 1e-8
 
 
@@ -102,11 +103,11 @@ class UpsampleBlock(nn.Module):
         ) if upsample else None
 
         self.style1 = nn.Linear(latent_dim, ichannels)
-        self.noise1 = nn.Conv2d(1, ochannels, kernel_size=1)
+        self.noise1 = SN(nn.Conv2d(1, ochannels, kernel_size=1))
         self.mode_conv1 = ModConv2D(ichannels, ochannels, kernel_size=3)
 
         self.style2 = nn.Linear(latent_dim, ochannels)
-        self.noise2 = nn.Conv2d(1, ochannels, kernel_size=1)
+        self.noise2 = SN(nn.Conv2d(1, ochannels, kernel_size=1))
         self.mode_conv2 = ModConv2D(ochannels, ochannels, kernel_size=3)
 
         self.activation = nn.LeakyReLU(0.2, inplace=True)
@@ -149,22 +150,22 @@ class ResNetXtBootleneck(nn.Module):
         super(ResNetXtBootleneck, self).__init__()
         hchannels = ochannels // 2
         
-        self.reduce = nn.Conv2d(
+        self.reduce = SN(nn.Conv2d(
             ichannels, hchannels, kernel_size=1, stride=1, bias=False,
-        )
+        ))
 
-        self.conv = nn.Conv2d(
+        self.conv = SN(nn.Conv2d(
             hchannels, hchannels,
             kernel_size=2 + stride,
             stride=stride,
             padding=dilate,
             groups=cardinality,
             bias=False,
-        )
+        ))
         
-        self.expand = nn.Conv2d(
+        self.expand = SN(nn.Conv2d(
             hchannels, ochannels, kernel_size=1, stride=1, bias=False,
-        )
+        ))
         
         self.shortcut = nn.AvgPool2d(2, stride=stride) if stride > 1 else None
 
