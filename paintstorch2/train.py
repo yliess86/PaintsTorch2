@@ -7,8 +7,10 @@ if __name__ == "__main__":
 
     import argparse
     import multiprocessing
+    import numpy as np
     import os
     import paintstorch2.data as pt2_data
+    import paintstorch2.metrics as pt2_metrics
     import paintstorch2.model as pt2_model
     import torch
     import torch.nn as nn
@@ -85,6 +87,8 @@ if __name__ == "__main__":
 
         GP = nn.DataParallel(pt2_model.GradientPenalty(D, λ2))
         MSE = nn.DataParallel(nn.MSELoss())
+
+        I3 = nn.DataParallel(pt2_metrics.InceptionV3Features())
     
     else:
         F1 = torch.jit.load(pt2_model.ILLUSTRATION2VEC)
@@ -97,8 +101,10 @@ if __name__ == "__main__":
         GP = pt2_model.GradientPenalty(D, λ2)
         MSE = nn.MSELoss()
 
+        I3 = pt2_metrics.InceptrionV3Features()
+
     to_cuda(F1, F2, S, G, D, GP, MSE)
-    to_eval(F1, F2)
+    to_eval(F1, F2, I3)
 
     GS_parameters = list(G.parameters()) + list(S.parameters())
     optim_GS = AdamW(GS_parameters, lr=α, betas=β)
@@ -122,9 +128,13 @@ if __name__ == "__main__":
     # ========
     # TRAINING
     # ========
-    for epoch in tqdm(range(args.epochs), desc="Epoch"):
+    e_pbar = tqdm(range(args.epochs), desc="Epoch")
+    for epoch in e_pbar:
         total_𝓛_D = 0
         total_𝓛_G = 0
+
+        fid_real_features = []
+        fid_fake_features = []
 
         pbar = tqdm(loader, desc="Batch")
         for i, batch in enumerate(pbar):
@@ -195,17 +205,42 @@ if __name__ == "__main__":
             optim_GS.step()
             total_𝓛_G += 𝓛_G.item() / len(loader)
 
+            # ==================
+            # INCEPTION FEATURES
+            # ==================
+            pbar.set_description("Batch FID")
+
+            with torch.no_grad():
+                fid_real_features.append(I3(illustration).cpu().numpy())
+                fid_fake_features.append(I3(fake).cpu().numpy())
+
             # =============
             # BATCH LOGGING
             # =============
             pbar.set_postfix(𝓛_D=total_𝓛_D, 𝓛_G=total_𝓛_G)
 
+        # ==========================
+        # FRECHET INCEPTION DISTANCE
+        # ==========================
+        fid_real_features = np.concatenate(fid_real_features)
+        fid_fake_features = np.concatenate(fid_fake_features)
+        fid = pt2_metrics.fid(fid_real_features, fid_fake_features)
+
         # =============
         # EPOCH LOGGING
         # =============
+        e_pbar.set_postfix(𝓛_D=total_𝓛_D, 𝓛_G=total_𝓛_G, FID=fid)
+
+        # ==============
+        # SCALAR LOGGING
+        # ==============
         writer.add_scalar("𝓛_D", total_𝓛_D, epoch)
         writer.add_scalar("𝓛_G", total_𝓛_G, epoch)
+        writer.add_scalar("FID", fid, epoch)
 
+        # ==============
+        # IMAGES LOGGING
+        # ==============
         to_eval(S, G, D)
 
         with torch.no_grad():
@@ -230,6 +265,9 @@ if __name__ == "__main__":
         writer.add_image("style", style, epoch)
         writer.add_image("illustration", illustration, epoch)
 
+        # ======
+        # SAVING
+        # ======
         torch.save({
             "args": vars(args),
             "S": S.state_dict(),

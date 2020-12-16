@@ -41,7 +41,7 @@
 
 **Metrics**
 
-- [ ] FID Score
+- [x] FID Score
 - [ ] PPL Score
 - [ ] MOS Score
 
