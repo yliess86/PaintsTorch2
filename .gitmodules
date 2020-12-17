@@ -1,0 +1,3 @@
+[submodule "kubeflow/dpt"]
+	path = kubeflow/dpt
+	url = https://dvic.devinci.fr/gitlab/gjouet/dpt
