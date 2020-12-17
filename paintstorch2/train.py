@@ -85,7 +85,7 @@ if __name__ == "__main__":
         G = nn.DataParallel(pt2_model.Generator(args.latent_dim, args.capacity))
         D = nn.DataParallel(pt2_model.Discriminator(args.capacity))
 
-        GP = nn.DataParallel(pt2_model.GradientPenalty(D, λ2))
+        GP = nn.DataParallel(pt2_model.GradientPenalty(λ2))
         MSE = nn.DataParallel(nn.MSELoss())
 
         I3 = nn.DataParallel(pt2_metrics.InceptionV3Features())
@@ -98,7 +98,7 @@ if __name__ == "__main__":
         G = pt2_model.Generator(args.latent_dim, args.capacity)
         D = pt2_model.Discriminator(args.capacity)
 
-        GP = pt2_model.GradientPenalty(D, λ2)
+        GP = pt2_model.GradientPenalty(λ2)
         MSE = nn.MSELoss()
 
         I3 = pt2_metrics.InceptrionV3Features()
@@ -176,7 +176,7 @@ if __name__ == "__main__":
             𝓛_real_drift = -𝓛_real + ε_drift * (𝓛_real ** 2)
             𝓛_real_drift.backward(retain_graph=True)
 
-            𝓛_p = GP(illustration, d_fake, features)
+            𝓛_p = GP(D, illustration, d_fake, features)
             𝓛_p.backward()
 
             𝓛_D = 𝓛_fake + 𝓛_real_drift + 𝓛_p
