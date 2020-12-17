@@ -15,7 +15,6 @@ numpy==1.18.1
 
 scikit_image==0.16.2
 scikit_learn==0.23.2
-skimage==0.0
 
 tensorboard
 https://download.pytorch.org/whl/cu102/torch-1.7.1-cp37-cp37m-linux_x86_64.whl
