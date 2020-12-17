@@ -8,7 +8,7 @@ import uuid
 PIPELINE_NAME = "PaintsTorch2"
 PIPELINE_DESC = "PaintsTorch2 Training Pipeline"
 
-DOCKER_IMG    = "yliess86/paintstorchv2:latest"
+DOCKER_IMG    = "yliess86/paintstorch2:latest"
 EXP           = str(uuid.uuid4()).replace("-", "_")
 NAMESPACE     = "dvic-kf"
 
