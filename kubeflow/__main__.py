@@ -35,17 +35,15 @@ args = parser.parse_args()
 with Pipeline(PIPELINE_NAME, PIPELINE_DESC, None, EXP, NAMESPACE) as pipeline:
     train = Container(
         args.docker_img,
-        " ".join((
-            f"--latent_dim {args.latent_dim}",
-            f"--capacity {args.capacity}",
-            f"--epochs {args.epochs}",
-            f"--batch_size {args.batch_size}",
-            f"--dataset {DATASET_PATH}",
-            f"--checkpoints {CKPT_PATH}",
-            f"--tensorboards {TB_PATH}",
-            f"--data_parallel",
-        )),
-        name = "train"
+        f"--latent_dim {args.latent_dim}",
+        f"--capacity {args.capacity}",
+        f"--epochs {args.epochs}",
+        f"--batch_size {args.batch_size}",
+        f"--dataset {DATASET_PATH}",
+        f"--checkpoints {CKPT_PATH}",
+        f"--tensorboards {TB_PATH}",
+        f"--data_parallel",
+        name="train",
     )
 
     train.select_node().gpu(args.n_gpu) 
