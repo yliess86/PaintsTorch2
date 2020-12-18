@@ -1,3 +1,4 @@
+from torchvision.models import vgg16
 from typing import List
 
 import numpy as np
@@ -5,7 +6,6 @@ import paintstorch2.model.blocks as pt2_blocks
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import torchvision.models as models
 
 
 SN = lambda conv: nn.utils.spectral_norm(conv)
@@ -15,7 +15,7 @@ class Embedding(nn.Module):
     def __init__(self, latent_dim: int) -> None:
         super(Embedding, self).__init__()
         self.latent_dim = latent_dim
-        self.vgg16 = models.vgg16(pretrained=True)
+        self.vgg16 = vgg16(pretrained=True)
         self.vgg16.classifier[6] = nn.Linear(4096, latent_dim)
 
         self.register_buffer("mean",
