@@ -103,7 +103,7 @@ if __name__ == "__main__":
 
         I3 = pt2_metrics.InceptrionV3Features()
 
-    to_cuda(F1, F2, S, G, D, GP, MSE)
+    to_cuda(F1, F2, S, G, D, GP, MSE, I3)
     to_eval(F1, F2, I3)
 
     GS_parameters = list(G.parameters()) + list(S.parameters())
