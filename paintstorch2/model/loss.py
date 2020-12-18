@@ -33,4 +33,5 @@ class GradientPenalty(nn.Module):
             only_inputs=True,
         )[0]
 
+        grads = grads.view(grads.size(0), -1)
         return self.λ * ((grads.norm(2, dim=1) - 1) ** 2).mean()

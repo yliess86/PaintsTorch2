@@ -176,7 +176,7 @@ if __name__ == "__main__":
             𝓛_real_drift = -𝓛_real + ε_drift * (𝓛_real ** 2)
             𝓛_real_drift.backward(retain_graph=True)
 
-            𝓛_p = GP(D, illustration, d_fake, features)
+            𝓛_p = GP(D, illustration, d_fake, features).mean(0)
             𝓛_p.backward()
 
             𝓛_D = 𝓛_fake + 𝓛_real_drift + 𝓛_p
@@ -191,14 +191,14 @@ if __name__ == "__main__":
             to_eval(D)
             optim_D.zero_grad()
             
-            𝓛_adv = -λ1 * D(fake, features).mean()
+            𝓛_adv = -λ1 * D(fake, features).mean(0)
             𝓛_adv.backward(retain_graph=True)
 
             features1 = F2(fake)
             with torch.no_grad():
                 features2 = F2(illustration)
 
-            𝓛_content = MSE(features1, features2)
+            𝓛_content = MSE(features1, features2).mean(0)
             𝓛_content.backward()
 
             𝓛_G = 𝓛_content + 𝓛_adv
