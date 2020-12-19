@@ -264,6 +264,7 @@ if __name__ == "__main__":
         writer.add_image("hints/mask", hints[None, -1], epoch)
         writer.add_image("style", style, epoch)
         writer.add_image("illustration", illustration, epoch)
+        writer.add_image("fake", fake, epoch)
 
         # ======
         # SAVING

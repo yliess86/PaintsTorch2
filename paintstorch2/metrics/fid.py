@@ -13,16 +13,15 @@ class InceptionV3Features(nn.Module):
     def __init__(self) -> None:
         super(InceptionV3Features, self).__init__()
         self.inception_v3 = inception_v3(pretrained=True)
-        self.inception_v3.Mixed_7c.register_forward_hook(self.hook)
 
-    def hook(
-        self, module: nn.Module, input: torch.Tensor, output: torch.Tensor,
-    ) -> None:
-        self.mixed_7c = output
+        def hook(module: nn.Module, _, output: torch.Tensor) -> None:
+            module.register_buffer("mixed_7c", output)
+        self.inception_v3.Mixed_7c.register_forward_hook(hook)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         self.inception_v3(F.interpolate(x, size=(299, 299)))
-        features = F.adaptive_avg_pool2d(self.mixed_7c, (1, 1))
+        features = self.inception_v3.Mixed_7c.mixed_7c
+        features = F.adaptive_avg_pool2d(features, (1, 1))
         return features.view(x.size(0), self.FEATURES)
 
 
