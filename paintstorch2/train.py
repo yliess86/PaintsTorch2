@@ -270,7 +270,7 @@ if __name__ == "__main__":
         hints = v_hints.squeeze(0).cpu()
         style = v_style.squeeze(0).cpu()
         illust = v_illust.squeeze(0).cpu()
-        fake = fake.squeeze(0).cpu()
+        fake = torch.clamp(fake.squeeze(0).cpu(), 0, 1)
 
         writer.add_image("composition/color", composition[:3], epoch)
         writer.add_image("composition/mask", composition[None, -1], epoch)
