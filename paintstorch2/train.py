@@ -1,4 +1,5 @@
 if __name__ == "__main__":
+    from torch.cuda.amp import autocast, GradScaler
     from torch.utils.data import DataLoader
     from torch.optim import AdamW
     from torch.utils.tensorboard import SummaryWriter
@@ -44,6 +45,7 @@ if __name__ == "__main__":
     parser.add_argument("--checkpoints",   type=str,  default="checkpoints")
     parser.add_argument("--tensorboards",  type=str,  default="tensorboards")
     parser.add_argument("--data_parallel", action="store_true")
+    parser.add_argument("--amp",           action="store_true")
     args = parser.parse_args()
 
     if not os.path.exists(args.checkpoints):
@@ -82,7 +84,9 @@ if __name__ == "__main__":
         F2 = nn.DataParallel(torch.jit.load(pt2_model.VGG16))
         
         S = nn.DataParallel(pt2_model.Embedding(args.latent_dim))
-        G = nn.DataParallel(pt2_model.Generator(args.latent_dim, args.capacity))
+        G = nn.DataParallel(
+            pt2_model.Generator(args.latent_dim, args.capacity)
+        )
         D = nn.DataParallel(pt2_model.Discriminator(args.capacity))
 
         GP = nn.DataParallel(pt2_model.GradientPenalty(λ2))
@@ -91,7 +95,7 @@ if __name__ == "__main__":
         I3 = nn.DataParallel(pt2_metrics.InceptionV3Features())
     
     else:
-        F1 = torch.jit.load(pt2_model.ILLUSTRATION2VEC)
+        F1 = torch.jit.load(pt2_model.illust2VEC)
         F2 = torch.jit.load(pt2_model.VGG16)
         
         S = pt2_model.Embedding(args.latent_dim)
@@ -110,16 +114,18 @@ if __name__ == "__main__":
     optim_GS = AdamW(GS_parameters, lr=α, betas=β)
     optim_D = AdamW(D.parameters(), lr=α, betas=β)
 
+    scaler = GradScaler(enabled=args.amp)
+
     # ===============
     # VALIDATION DATA
     # ===============
-    _, v_composition, v_hints, v_style, v_illustration = dataset[7]
+    _, v_composition, v_hints, v_style, v_illust = dataset[7]
     c, h, w = v_composition.size()
 
     v_composition = v_composition.unsqueeze(0).cuda()
     v_hints = v_hints.unsqueeze(0).cuda()
     v_style = v_style.unsqueeze(0).cuda()
-    v_illustration = v_illustration.unsqueeze(0).cuda()
+    v_illust = v_illust.unsqueeze(0).cuda()
     v_noise = torch.rand((1, 1, h, w)).cuda()
 
     with torch.no_grad():
@@ -138,14 +144,14 @@ if __name__ == "__main__":
 
         pbar = tqdm(loader, desc="Batch")
         for i, batch in enumerate(pbar):
-            artist_id, composition, hints, style, illustration = batch
+            artist_id, composition, hints, style, illust = batch
             b, c, h, w = composition.size()
 
             artist_id = artist_id.cuda()
             composition = composition.cuda()
             hints = hints.cuda()
             style = style.cuda()
-            illustration = illustration.cuda()
+            illust = illust.cuda()
             noise = torch.rand((b, 1, h, w)).cuda()
 
             # ======
@@ -155,12 +161,13 @@ if __name__ == "__main__":
             optim_GS.zero_grad()
             optim_D.zero_grad()
 
-            with torch.no_grad():
-                features = F1(composition[:, :3])
-            
-            style_embedding = S(style)
-            fake = G(composition, hints, features, style_embedding, noise)
-            fake = composition[:, :3] + fake * composition[:, :-1]
+            with autocast(enabled=args.amp):
+                with torch.no_grad():
+                    features = F1(composition[:, :3])
+                
+                style_embedding = S(style)
+                fake = G(composition, hints, features, style_embedding, noise)
+                fake = composition[:, :3] + fake * composition[:, :-1]
             
             # =============
             # DISCRIMINATOR
@@ -169,18 +176,20 @@ if __name__ == "__main__":
             
             d_fake = fake.detach()
             
-            𝓛_fake = torch.relu(1 + D(d_fake, features).mean(0).view(1))
-            𝓛_fake.backward(retain_graph=True)
+            with autocast(enabled=args.amp):
+                𝓛_fake = torch.relu(1 + D(d_fake, features).mean(0).view(1))
+            scaler.scale(𝓛_fake).backward(retain_graph=True)
 
-            𝓛_real = torch.relu(1 - D(illustration, features).mean(0).view(1))
-            𝓛_real_drift = -𝓛_real + ε_drift * (𝓛_real ** 2)
-            𝓛_real_drift.backward(retain_graph=True)
+            with autocast(enabled=args.amp):
+                𝓛_real = torch.relu(1 - D(illust, features).mean(0).view(1))
+                𝓛_real_drift = -𝓛_real + ε_drift * (𝓛_real ** 2)
+            scaler.scale(𝓛_real_drift).backward(retain_graph=True)
 
-            𝓛_p = GP(D, illustration, d_fake, features).mean(0)
+            𝓛_p = GP(D, illust, d_fake, features).mean(0)
             𝓛_p.backward()
 
             𝓛_D = 𝓛_fake + 𝓛_real_drift + 𝓛_p
-            optim_D.step()
+            scaler.step(optim_D)
             total_𝓛_D += 𝓛_D.item() / len(loader)
 
             # =========
@@ -191,18 +200,21 @@ if __name__ == "__main__":
             to_eval(D)
             optim_D.zero_grad()
             
-            𝓛_adv = -λ1 * D(fake, features).mean(0)
-            𝓛_adv.backward(retain_graph=True)
+            with autocast(enabled=args.amp):
+                𝓛_adv = -λ1 * D(fake, features).mean(0)
+            scaler.scale(𝓛_adv).backward(retain_graph=True)
 
-            features1 = F2(fake)
-            with torch.no_grad():
-                features2 = F2(illustration)
+            with autocast(enabled=args.amp):
+                features1 = F2(fake)
+                with torch.no_grad():
+                    features2 = F2(illust)
 
-            𝓛_content = MSE(features1, features2).mean(0)
-            𝓛_content.backward()
+            with autocast(enabled=args.amp):
+                𝓛_content = MSE(features1, features2).mean(0)
+            scaler.scale(𝓛_content).backward()
 
             𝓛_G = 𝓛_content + 𝓛_adv
-            optim_GS.step()
+            scaler.step(optim_GS)
             total_𝓛_G += 𝓛_G.item() / len(loader)
 
             # ==================
@@ -210,14 +222,16 @@ if __name__ == "__main__":
             # ==================
             pbar.set_description("Batch FID")
 
-            with torch.no_grad():
-                fid_real_features.append(I3(illustration).cpu().numpy())
-                fid_fake_features.append(I3(fake).cpu().numpy())
+            with autocast(enabled=args.amp):
+                with torch.no_grad():
+                    fid_real_features.append(I3(illust).cpu().numpy())
+                    fid_fake_features.append(I3(fake).cpu().numpy())
 
             # =============
             # BATCH LOGGING
             # =============
             pbar.set_postfix(𝓛_D=total_𝓛_D, 𝓛_G=total_𝓛_G)
+            scaler.update()
 
         # ==========================
         # FRECHET INCEPTION DISTANCE
@@ -255,7 +269,7 @@ if __name__ == "__main__":
         composition = v_composition.squeeze(0).cpu()
         hints = v_hints.squeeze(0).cpu()
         style = v_style.squeeze(0).cpu()
-        illustration = v_illustration.squeeze(0).cpu()
+        illust = v_illust.squeeze(0).cpu()
         fake = fake.squeeze(0).cpu()
 
         writer.add_image("composition/color", composition[:3], epoch)
@@ -263,7 +277,7 @@ if __name__ == "__main__":
         writer.add_image("hints/color", hints[:3], epoch)
         writer.add_image("hints/mask", hints[None, -1], epoch)
         writer.add_image("style", style, epoch)
-        writer.add_image("illustration", illustration, epoch)
+        writer.add_image("illustration", illust, epoch)
         writer.add_image("fake", fake, epoch)
 
         # ======
