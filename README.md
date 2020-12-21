@@ -35,14 +35,12 @@
     - [x] Gradient Penalty
     - [x] Classic cWGAN-GP Training Pipeline
     - [x] Spectral Normalization
-    - [ ] StyleGAN2 Path Penalty
     - [x] Use DataParallel
-    - [ ] Use `torch.cuda.amp` for Autamatic Mixed Precision
+    - [x] Use `torch.cuda.amp` for Autamatic Mixed Precision
 
 **Metrics**
 
 - [x] FID Score
-- [ ] PPL Score
 - [ ] MOS Score
 
 ## Bibliography
