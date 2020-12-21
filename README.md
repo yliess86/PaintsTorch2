@@ -37,6 +37,7 @@
     - [x] Spectral Normalization
     - [x] Use DataParallel
     - [x] Use `torch.cuda.amp` for Autamatic Mixed Precision
+    - [x] Step Learning Rate Decay
 
 **Metrics**
 

@@ -2,6 +2,7 @@ if __name__ == "__main__":
     from torch.cuda.amp import autocast, GradScaler
     from torch.utils.data import DataLoader
     from torch.optim import AdamW
+    from torch.optim.lr_scheduler import StepLR
     from torch.utils.tensorboard import SummaryWriter
     from tqdm import tqdm
     from typing import List, Union
@@ -58,11 +59,13 @@ if __name__ == "__main__":
     # =====
     writer = SummaryWriter(log_dir=args.tensorboards)
 
-    α = 1e-4        # AdamW Learning Rate
-    β = 0.5, 0.9    # AdamW Betas
-    ε_drift = 1e-3  # Discriminator Drifiting
-    λ1 = 1e-4       # Adversarial Loss Weight
-    λ2 = 10         # Gradient Penalty Weight
+    α = 1e-4                              # AdamW Learning Rate
+    β = 0.5, 0.9                          # AdamW Betas
+    γ = 0.1                               # Learning Rate Step Decay
+    γ_step = int(0.75 * args.batch_size)  # Learning Rate Step Decay Step
+    ε_drift = 1e-3                        # Discriminator Drifiting
+    λ1 = 1e-4                             # Adversarial Loss Weight
+    λ2 = 10                               # Gradient Penalty Weight
 
     dataset = pt2_data.ModularPaintsTorch2Dataset(pt2_data.Modules(
         color=pt2_data.kMeansColorSimplifier((5, 10)),
@@ -114,6 +117,9 @@ if __name__ == "__main__":
     optim_GS = AdamW(GS_parameters, lr=α, betas=β)
     optim_D = AdamW(D.parameters(), lr=α, betas=β)
 
+    scheduler_GS = StepLR(optim_GS, step_size=γ_step, gamma=γ)
+    scheduler_D = StepLR(optim_D, step_size=γ_step, gamma=γ)
+    
     scaler = GradScaler(enabled=args.amp)
 
     # ===============
@@ -231,7 +237,17 @@ if __name__ == "__main__":
             # BATCH LOGGING
             # =============
             pbar.set_postfix(𝓛_D=total_𝓛_D, 𝓛_G=total_𝓛_G)
+            
+            # ===========
+            # BATCH RESET
+            # ===========
             scaler.update()
+            
+        # ===========
+        # EPOCH RESET
+        # ===========
+        scheduler_GS.step()
+        scheduler_D.step()
 
         # ==========================
         # FRECHET INCEPTION DISTANCE
