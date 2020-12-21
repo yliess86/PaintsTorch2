@@ -43,6 +43,7 @@ with Pipeline(PIPELINE_NAME, PIPELINE_DESC, None, EXP, NAMESPACE) as pipeline:
         f"--checkpoints {CKPT_PATH}",
         f"--tensorboards {TB_PATH}",
         f"--data_parallel",
+        f"--amp",
         name="train",
     )
 
