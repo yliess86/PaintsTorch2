@@ -1,5 +1,5 @@
 from numba import njit
-from paintstorch2.data.color.base import ColorSimplifier
+from paintstorch2.data.mask.base import MaskGenerator
 from paintstorch2.model import SKELETONIZER
 from PIL import Image
 from scipy.ndimage import label
@@ -134,12 +134,17 @@ def get_regions(skeleton: np.ndarray) -> List[Tuple[np.ndarray, np.ndarray]]:
     return find_all(water)
 
 
-class SegmentationColorSimplifier(ColorSimplifier):
-    def __init__(self) -> None:
-        super(SegmentationColorSimplifier, self).__init__()
+Range = Tuple[int, int]
+
+
+class SegmentationMaskGenerator(MaskGenerator):
+    def __init__(self, mix: Range) -> None:
+        super(SegmentationMaskGenerator, self).__init__()
         self.skeletonizer = torch.jit.load(SKELETONIZER)
+        self.mix = mix
 
     def __call__(self, img: Image.Image, *args, **kwargs) -> Image.Image:
+        mix = np.random.randint(*self.mix)
         x = np.array(img) / 255.0
 
         with torch.no_grad():
@@ -147,28 +152,11 @@ class SegmentationColorSimplifier(ColorSimplifier):
             skeleton = self.skeletonizer(in_x[None, ...])[0, 0].numpy()
 
         regions = get_regions(skeleton * 255)
-        colors = np.zeros((*x.shape[:2], 3))
-        for region in regions:
-            colors[region] = np.array([
-                np.median(x[region][..., i]) for i in range(3)
-            ])
+        selection_indices = np.random.choice(range(len(regions)), size=(mix, ))
+        
+        mask = np.zeros(x.shape[:2], dtype=np.uint8)
+        for idx in selection_indices:
+            mask[regions[idx]] = 255
 
-        img = Image.fromarray((colors * 255).astype(np.uint8))
+        img = Image.fromarray(mask)
         return img
-
-
-if __name__ == '__main__':
-    from io import BytesIO
-
-    import os
-    import requests
-
-
-    BASE = "https://upload.wikimedia.org/wikipedia/en"
-    URL = os.path.join(BASE, "7/7d/Lenna_%28test_image%29.png")
-    
-    img = Image.open(BytesIO(requests.get(URL).content)).resize((128,) * 2)
-    color = SegmentationColorSimplifier()(img)
-
-    img.show()
-    color.show()
