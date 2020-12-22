@@ -1,6 +1,7 @@
 from paintstorch2.data.color.base import ColorSimplifier
 from paintstorch2.data.color.kmeans import kMeansColorSimplifier
 from paintstorch2.data.color.quantize import QuantizeColorSimplifier
+from paintstorch2.data.color.segmentation import SegmentationColorSimplifier
 
 from paintstorch2.data.dataset.base import PaintsTorch2Dataset
 from paintstorch2.data.dataset.modular import (
