@@ -44,6 +44,12 @@
 - [x] FID Score
 - [ ] MOS Score
 
+## Authors
+
+- Yliess HATI - [Github](https://github.com/yliess86)
+- Vincent THEVENIN - [Github](https://github.com/vincent-thevenin)
+- Grégor JOUET - [Github](https://github.com/WIN32GG)
+
 ## Bibliography
 
 - [GAN Improvements](https://arxiv.org/pdf/1710.10196.pdf) - Progressive Growing of GANS for Improved Quality, Stability, and Variation - Karras and al. - *ICLR 2018*
