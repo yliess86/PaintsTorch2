@@ -18,3 +18,24 @@ from paintstorch2.data.mask.base import MaskGenerator
 from paintstorch2.data.mask.kmeans import kMeansMaskGenerator
 from paintstorch2.data.mask.patch import PatchMaskGenerator
 from paintstorch2.data.mask.segmentation import SegmentationMaskGenerator
+
+
+COLOR_SIMPLIFIERS = {
+    "kmeans": kMeansColorSimplifier,
+    "quantize": QuantizeColorSimplifier,
+    "segmentation": SegmentationColorSimplifier,
+}
+
+HINTS_GENERATORS = {
+    "random": RandomHintsGenerator,
+}
+
+LINEART_GENERATORS = {
+    "xdog": xDoGLineartGenerator,
+}
+
+MASK_GENERATORS = {
+    "kmeans": kMeansMaskGenerator,
+    "patch": PatchMaskGenerator,
+    "segmentation": SegmentationMaskGenerator,
+}
