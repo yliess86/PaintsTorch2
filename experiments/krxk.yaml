@@ -1,0 +1,19 @@
+color:
+  name: kmeans
+  params:
+    colors:
+      -  5
+      - 10
+
+hints:
+  name: random
+
+lineart:
+  name: xdog
+
+mask:
+  name: kmeans
+  params:
+     colors:
+        - 2
+        - 5

@@ -1,0 +1,15 @@
+color:
+  name: segmentation
+
+hints:
+  name: random
+
+lineart:
+  name: xdog
+
+mask:
+  name: segmentation
+  params:
+     mix:
+        - 2
+        - 25
