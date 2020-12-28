@@ -9,5 +9,6 @@ RUN python3 -c "from torchvision.models import vgg16; _ = vgg16(pretrained=True)
 RUN python3 -c "from torchvision.models import inception_v3; _ = inception_v3(pretrained=True);"
 
 ADD paintstorch2 paintstorch2/
+ADD experiments experiments/
 
 ENTRYPOINT ["python3", "-m"]
