@@ -4,6 +4,7 @@ from typing import Any, NamedTuple
 
 import numpy as np
 import os
+import torch
 import torchvision.transforms as T
 
 
@@ -15,6 +16,14 @@ class File(NamedTuple):
 class Illustration(NamedTuple):
     artist_id: int
     illustration: Image.Image
+
+
+class Data(NamedTuple):
+    artist_id: int
+    composition: torch.Tensor
+    hints: torch.Tensor
+    style: torch.Tensor
+    illustration: torch.Tensor
 
 
 class PaintsTorch2Dataset(Dataset):
