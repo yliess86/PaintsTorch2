@@ -10,4 +10,4 @@ RUN python3 -c "from torchvision.models import inception_v3; _ = inception_v3(pr
 
 ADD paintstorch2 paintstorch2/
 
-ENTRYPOINT ["python3", "-m", "paintstorch2.train"]
+ENTRYPOINT ["python3", "-m"]
