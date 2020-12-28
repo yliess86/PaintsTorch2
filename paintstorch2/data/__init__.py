@@ -7,6 +7,7 @@ from paintstorch2.data.dataset.base import PaintsTorch2Dataset
 from paintstorch2.data.dataset.modular import (
     ModularPaintsTorch2Dataset, Modules,
 )
+from paintstorch2.data.dataset.preprocessed import PreprocessedPaintsTorch2Dataset
 
 from paintstorch2.data.hints.base import Hints, HintsGenerator
 from paintstorch2.data.hints.random import RandomHintsGenerator

@@ -42,7 +42,7 @@ if __name__ == "__main__":
     parser.add_argument("--capacity",      type=int,  default=64)
     parser.add_argument("--epochs",        type=int,  default=200)
     parser.add_argument("--batch_size",    type=int,  default=16)
-    parser.add_argument("--dataset",       type=str,  default="dataset")
+    parser.add_argument("--preprocessed",  type=str,  default="preprocessed")
     parser.add_argument("--checkpoints",   type=str,  default="checkpoints")
     parser.add_argument("--tensorboards",  type=str,  default="tensorboards")
     parser.add_argument("--data_parallel", action="store_true")
@@ -67,12 +67,7 @@ if __name__ == "__main__":
     λ1 = 1e-4                             # Adversarial Loss Weight
     λ2 = 10                               # Gradient Penalty Weight
 
-    dataset = pt2_data.ModularPaintsTorch2Dataset(pt2_data.Modules(
-        color=pt2_data.kMeansColorSimplifier((5, 10)),
-        hints=pt2_data.RandomHintsGenerator(),
-        lineart=pt2_data.xDoGLineartGenerator(),
-        mask=pt2_data.kMeansMaskGenerator((2, 5)),
-    ), args.dataset, False)
+    dataset = pt2_data.PreprocessedPaintsTorch2Dataset(args.preprocessed)
 
     batch_factor = torch.cuda.device_count() if args.data_parallel else 1
     loader = DataLoader(
