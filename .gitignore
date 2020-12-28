@@ -139,5 +139,6 @@ cython_debug/
 
 # Project Ignores
 /dataset/
+/preprocessed/
 /checkpoints/
 /tensorboards/
