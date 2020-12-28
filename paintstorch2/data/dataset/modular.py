@@ -1,5 +1,5 @@
 from paintstorch2.data.color.base import ColorSimplifier
-from paintstorch2.data.dataset.base import PaintsTorch2Dataset
+from paintstorch2.data.dataset.base import Data, PaintsTorch2Dataset
 from paintstorch2.data.hints.base import HintsGenerator
 from paintstorch2.data.lineart.base import LineartGenerator
 from paintstorch2.data.mask.base import MaskGenerator
@@ -15,14 +15,6 @@ class Modules(NamedTuple):
     hints: HintsGenerator
     lineart: LineartGenerator
     mask: MaskGenerator
-
-
-class Data(NamedTuple):
-    artist_id: int
-    composition: torch.Tensor
-    hints: torch.Tensor
-    style: torch.Tensor
-    illustration: torch.Tensor
     
 
 class ModularPaintsTorch2Dataset(PaintsTorch2Dataset):
