@@ -66,7 +66,7 @@ class ModularPaintsTorch2Dataset(PaintsTorch2Dataset):
         
         with open(config, "r") as f:
             content = f.read()
-        data = yaml.load(content)
+        data = yaml.load(content, Loader=yaml.FullLoader)
 
         color_data = data["color"]
         color = COLOR_SIMPLIFIERS[color_data["name"]](
