@@ -67,13 +67,15 @@ if __name__ == "__main__":
     λ1 = 1e-4                             # Adversarial Loss Weight
     λ2 = 10                               # Gradient Penalty Weight
 
-    dataset = pt2_data.PreprocessedPaintsTorch2Dataset(args.preprocessed)
+    dataset = pt2_data.PreprocessedPaintsTorch2Dataset(
+        args.preprocessed, is_train=True,
+    )
 
     batch_factor = torch.cuda.device_count() if args.data_parallel else 1
     loader = DataLoader(
         dataset,
         args.batch_size * batch_factor,
-        shuffle=False,
+        shuffle=True,
         num_workers=multiprocessing.cpu_count(),
     )
 
