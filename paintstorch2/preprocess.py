@@ -14,7 +14,6 @@ if __name__ == "__main__":
     parser.add_argument("--config",        type=str)
     parser.add_argument("--illustrations", type=str)
     parser.add_argument("--destination",   type=str)
-    parser.add_argument("--variations",    type=int, default=25)
     args = parser.parse_args()
 
     if os.path.exists(args.destination):
@@ -23,16 +22,14 @@ if __name__ == "__main__":
     os.makedirs(args.destination, exist_ok=True)
 
     dataset = ModularPaintsTorch2Dataset.from_config(
-        args.config, args.illustrations, is_train=True,
+        args.config, args.illustrations, is_train=False,
     )
-
-    li, lj = len(str(len(dataset))), len(str(args.variations))
-    pbar = tqdm(total=len(dataset) * args.variations)
+    pbar = tqdm(total=len(dataset))
 
 
-    def process(i: int, j: int) -> None:
+    def process(i: int) -> None:
         data = dataset[i]
-        file = f"{i:0{li}d}_{j:0{lj}}.pt"
+        file = f"{i:0{len(str(len(dataset)))}d}.pt"
         path = os.path.join(args.destination, file)
         
         torch.save(data, path)
@@ -42,5 +39,4 @@ if __name__ == "__main__":
     workers = multiprocessing.cpu_count()
     with ThreadPoolExecutor(max_workers=workers) as executor:
         for i in range(len(dataset)):
-            for j in range(args.variations):
-               executor.submit(process, i, j) 
+            executor.submit(process, i)
