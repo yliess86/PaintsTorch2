@@ -1,7 +1,6 @@
 if __name__ == "__main__":
-    from concurrent.futures import ThreadPoolExecutor
-    from paintstorch2.data.dataset.base import Data
-    from paintstorch2.data.dataset.modular import ModularPaintsTorch2Dataset
+    from concurrent.futures import ProcessPoolExecutor
+    from paintstorch2.data.dataset.modular import ModularDataset
     from tqdm import tqdm
 
     import argparse
@@ -18,25 +17,20 @@ if __name__ == "__main__":
 
     if os.path.exists(args.destination):
         exit(0)
-    
-    os.makedirs(args.destination, exist_ok=True)
 
-    dataset = ModularPaintsTorch2Dataset.from_config(
-        args.config, args.illustrations, is_train=False,
-    )
+    os.makedirs(args.destination, exist_ok=True)
+    dataset = ModularDataset.from_config(args.config, args.illustrations)
     pbar = tqdm(total=len(dataset))
 
 
-    def process(i: int) -> None:
-        data = dataset[i]
+    def process(i: int) -> int:
         file = f"{i:0{len(str(len(dataset)))}d}.pt"
         path = os.path.join(args.destination, file)
-        
-        torch.save(data, path)
-        pbar.update(1)
+        torch.save(dataset[i], path)
+        return 1
 
 
     workers = multiprocessing.cpu_count()
-    with ThreadPoolExecutor(max_workers=workers) as executor:
+    with ProcessPoolExecutor(max_workers=workers) as executor:
         for i in range(len(dataset)):
-            executor.submit(process, i)
+            pbar.update(executor.submit(process, i).result())

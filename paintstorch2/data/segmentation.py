@@ -127,13 +127,17 @@ def find_all(labeled: np.ndarray) -> np.ndarray:
 
 def get_regions(skeleton: np.ndarray) -> List[Tuple[np.ndarray, np.ndarray]]:
     marker = skeleton.copy()
+
     normal = topo_compute_normal(marker) * 127.5 + 127.5
+    normal = normal.clip(0, 255).astype(np.uint8)
+    
     marker[marker > 100] = 255
     marker[marker < 255] = 0
     
     labels, _ = label(marker / 255)
-    water = thinning(cv2.watershed(
-        normal.clip(0, 255).astype(np.uint8), labels.astype(np.int32),
-    ) + 1)
+    labels = labels.astype(np.int32)
+    
+    water = cv2.watershed(normal, labels)
+    water = thinning(water + 1)
     
     return find_all(water)
