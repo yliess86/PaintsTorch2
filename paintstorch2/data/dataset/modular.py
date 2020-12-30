@@ -1,5 +1,5 @@
 from paintstorch2.data.color.base import ColorSimplifier
-from paintstorch2.data.dataset.base import Data, PaintsTorch2Dataset
+from paintstorch2.data.dataset.illustration import Data, IllustrationsDataset
 from paintstorch2.data.hints.base import HintsGenerator
 from paintstorch2.data.lineart.base import LineartGenerator
 from paintstorch2.data.mask.base import MaskGenerator
@@ -17,46 +17,45 @@ class Modules(NamedTuple):
     mask: MaskGenerator
     
 
-class ModularPaintsTorch2Dataset(PaintsTorch2Dataset):
-    def __init__(
-        self, modules: Modules, path: str, is_train: bool = False,
-    ) -> None:
-        super(ModularPaintsTorch2Dataset, self).__init__(path, is_train)
+class ModularDataset(IllustrationsDataset):
+    def __init__(self, modules: Modules, path: str) -> None:
+        super(ModularDataset, self).__init__(path)
         self.modules = modules
         self.to_tensor = T.ToTensor()
 
     def __getitem__(self, idx: int) -> Data:
-        data = super(ModularPaintsTorch2Dataset, self).__getitem__(idx)
-        artist_id, illustration_512 = data
+        artist_id, _illu = super(ModularDataset, self).__getitem__(idx)
 
-        style_512 = super(ModularPaintsTorch2Dataset, self).style(artist_id)
-        colors_512 = self.modules.color(illustration_512)
-        colors_128 = colors_512.resize((128, 128))
-        hints_128 = self.modules.hints(colors_128)
-        lineart_512 = self.modules.lineart(illustration_512)
-        mask_512 = self.modules.mask(illustration_512)
+        _illu_512 = T.Resize(512)(_illu)
+        _illu_512_512 = T.Resize((512, 512))(_illu_512)
+        h, w = _illu_512.height, _illu_512.width
 
-        illustration = self.to_tensor(illustration_512)
-        style = self.to_tensor(style_512)
-        lineart = self.to_tensor(lineart_512)
-        mask = self.to_tensor(mask_512)
+        _colors_512_512 = self.modules.color(_illu_512_512)
+        _colors_512 = T.Resize((h, w))(_colors_512_512)
         
-        hints = torch.cat([
-            self.to_tensor(hints_128.hints),
-            self.to_tensor(hints_128.mask),
-        ], dim=0)
+        _hints_512_512 = self.modules.hints(_colors_512_512)
+        
+        _lineart_512_512 = self.modules.lineart(_illu_512_512)
+        _lineart_512 = T.Resize((h, w))(_lineart_512_512)
 
-        composition = torch.cat([
-            illustration * (1 - mask) + lineart * mask,
-            mask,
-        ], dim=0)
+        _mask_512_512 = self.modules.mask(_illu_512_512)
+        _mask_512 = T.Resize((h, w))(_mask_512_512)
 
-        return Data(artist_id, composition, hints, style, illustration)
+        illustration = self.to_tensor(_illu_512)
+        lineart = self.to_tensor(_lineart_512)
+        mask = self.to_tensor(_mask_512)
+        
+        hints_colors = self.to_tensor(T.Resize((h, w))(_hints_512_512.hints))
+        hints_mask = self.to_tensor(T.Resize((h, w))(_hints_512_512.mask))
+        hints = torch.cat([hints_colors, hints_mask], dim=0)
+
+        interpolation = illustration * (1 - mask) + lineart * mask
+        composition = torch.cat([interpolation, mask], dim=0)
+
+        return Data(artist_id, composition, hints, illustration)
 
     @classmethod
-    def from_config(
-        cls, config: str, path: str, is_train: bool = False,
-    ) -> "ModularPaintsTorch2Dataset":
+    def from_config(cls, config: str, path: str) -> "ModularDataset":
         from paintstorch2.data import (
             COLOR_SIMPLIFIERS,
             HINTS_GENERATORS,
@@ -88,5 +87,4 @@ class ModularPaintsTorch2Dataset(PaintsTorch2Dataset):
             **mask_data.get("params", {})
         )
 
-        modules = Modules(color, hints, lineart, mask)
-        return cls(modules, path, is_train)
+        return cls(Modules(color, hints, lineart, mask), path)
