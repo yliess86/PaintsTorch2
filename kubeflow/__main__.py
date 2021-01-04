@@ -28,6 +28,7 @@ DGX_TB_PATH       = f"{BASE_PATH}/dl/tensorboard/PaintsTorch2"
 parser = argparse.ArgumentParser()
 parser.add_argument("--docker_img",    type=str, default=DOCKER_IMG)
 parser.add_argument("--config",        type=str, default="srxs.yaml")
+parser.add_argument("--variations",    type=int, default=64)
 parser.add_argument("--latent_dim",    type=int, default=128)
 parser.add_argument("--capacity",      type=int, default=64)
 parser.add_argument("--epochs",        type=int, default=200)
@@ -46,6 +47,7 @@ with Pipeline(PIPELINE_NAME, PIPELINE_DESC, None, EXP, NAMESPACE) as pipeline:
         f"--config {os.path.join(EXP_PATH, args.config)}",
         f"--illustrations {DATASET_PATH}",
         f"--destination {preprocessed_dataset}",
+        f"--variations {args.variations}",
         name="preprocess",
     )
     preprocess.select_node().gpu(0)
@@ -54,6 +56,7 @@ with Pipeline(PIPELINE_NAME, PIPELINE_DESC, None, EXP, NAMESPACE) as pipeline:
     train = Container(
         args.docker_img,
         f"paintstorch2.train",
+        f"--exp {args.config.split('.')[0]}",
         f"--latent_dim {args.latent_dim}",
         f"--capacity {args.capacity}",
         f"--epochs {args.epochs}",
