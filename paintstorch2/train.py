@@ -38,6 +38,7 @@ if __name__ == "__main__":
 
 
     parser = argparse.ArgumentParser()
+    parser.add_argument("--exp",           type=str,  default="")
     parser.add_argument("--latent_dim",    type=int,  default=128)
     parser.add_argument("--capacity",      type=int,  default=64)
     parser.add_argument("--epochs",        type=int,  default=200)
@@ -303,5 +304,5 @@ if __name__ == "__main__":
             "D": D.state_dict(),
         }, os.path.join(
             args.checkpoints,
-            f"paintstorch2_{epoch:0{len(str(args.epochs))}d}.pth",
+            f"paintstorch2_{args.exp}_{epoch:0{len(str(args.epochs))}d}.pth",
         ))

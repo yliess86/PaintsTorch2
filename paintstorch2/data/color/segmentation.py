@@ -22,7 +22,11 @@ class SegmentationColorSimplifier(ColorSimplifier):
         regions = get_regions(skeleton * 255)
         colors = np.zeros((*x.shape[:2], 3))
         for region in regions:
-            colors[region] = [np.median(x[region][..., i]) for i in range(3)]
+            if len(x[region]) > 0:
+                colors[region] = [
+                    np.nanmedian(x[region][..., i])
+                    for i in range(3)
+                ]
 
         img = Image.fromarray((colors * 255).astype(np.uint8))
         return img

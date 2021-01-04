@@ -1,3 +1,4 @@
+from PIL import Image
 from torch.utils.data import Dataset
 from tqdm import tqdm
 from typing import NamedTuple, List
@@ -57,13 +58,13 @@ class PaintsTorch2Dataset(Dataset):
         if not self.is_train:
             return imgs
 
-        b = np.random.uniform(0, 0.2)
+        b = 1 - np.random.uniform(0, 0.2)
         imgs = [T.functional.adjust_brightness(img, b) for img in imgs]
 
-        c = np.random.uniform(0, 0.2)
+        c = 1 - np.random.uniform(0, 0.2)
         imgs = [T.functional.adjust_contrast(img, c) for img in imgs]
 
-        s = np.random.uniform(0, 0.2)
+        s = 1 - np.random.uniform(0, 0.2)
         imgs = [T.functional.adjust_saturation(img, s) for img in imgs]
 
         h = np.random.uniform(0, 0.1)
@@ -97,10 +98,18 @@ class PaintsTorch2Dataset(Dataset):
         compo, hints, illu = self.crop([compo, hints, illu], size=512)
         compo, hints, illu = self.flip(self.rotate([compo, hints, illu]))
         compo[:3], hints[:3], illu = self.jitter([compo[:3], hints[:3], illu])
-        hints = T.functional.resize(hints, [128, 128])
+        hints = T.functional.resize(hints, [128, 128], Image.NEAREST)
         
         style, = self.crop([style,], size=512)
         style, = self.flip(self.rotate([style,]))
         style, = self.jitter([style,])
         
         return Data(artist_id, compo, hints, style, illu)
+
+
+if __name__ == '__main__':
+    from PIL import Image
+    dataset = PaintsTorch2Dataset("preprocessed", is_train=True)
+
+    artist_id, compo, hints, style, illu = dataset[15]
+    Image.fromarray((hints.permute((1, 2, 0)).numpy() * 255).astype(np.uint8)).show()
