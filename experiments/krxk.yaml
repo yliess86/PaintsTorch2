@@ -7,6 +7,9 @@ color:
 
 hints:
   name: random
+  params:
+    p: 0.001
+    size: 4
 
 lineart:
   name: xdog
