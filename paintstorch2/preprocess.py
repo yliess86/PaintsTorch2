@@ -13,6 +13,7 @@ if __name__ == "__main__":
     parser.add_argument("--config",        type=str)
     parser.add_argument("--illustrations", type=str)
     parser.add_argument("--destination",   type=str)
+    parser.add_argument("--variations",    type=int, default=10)
     args = parser.parse_args()
 
     if os.path.exists(args.destination):
@@ -20,12 +21,13 @@ if __name__ == "__main__":
 
     os.makedirs(args.destination, exist_ok=True)
     dataset = ModularDataset.from_config(args.config, args.illustrations)
-    pbar = tqdm(total=len(dataset))
+    pbar = tqdm(total=len(dataset) * args.variations)
 
 
-    def process(i: int) -> int:
-        file = f"{i:0{len(str(len(dataset)))}d}.pt"
-        path = os.path.join(args.destination, file)
+    def process(i: int, j: int) -> int:
+        str_i = f"{i:0{len(str(len(dataset)))}d}"
+        str_j = f"{j:0{len(str(args.variations))}d}"
+        path = os.path.join(args.destination, f"{str_i}_{str_j}.pt")
         torch.save(dataset[i], path)
         return 1
 
@@ -33,4 +35,5 @@ if __name__ == "__main__":
     workers = multiprocessing.cpu_count()
     with ProcessPoolExecutor(max_workers=workers) as executor:
         for i in range(len(dataset)):
-            pbar.update(executor.submit(process, i).result())
+            for j in range(args.variations):
+                pbar.update(executor.submit(process, i, j).result())
