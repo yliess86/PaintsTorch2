@@ -14,5 +14,5 @@ mask:
   name: segmentation
   params:
      mix:
-        - 2
-        - 25
+        - 15
+        - 60
