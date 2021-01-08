@@ -1,7 +1,7 @@
 from paintstorch2.data.mask.base import MaskGenerator
 from paintstorch2.data.segmentation import get_regions
 from paintstorch2.model import SKELETONIZER
-from PIL import Image
+from PIL import Image, ImageFilter
 from typing import Tuple
 
 import numpy as np
@@ -19,7 +19,7 @@ class SegmentationMaskGenerator(MaskGenerator):
 
     def __call__(self, img: Image.Image, *args, **kwargs) -> Image.Image:
         mix = np.random.randint(*self.mix)
-        x = np.array(img) / 255.0
+        x = np.array(img.resize((128, 128))) / 255.0
 
         with torch.no_grad():
             in_x = torch.Tensor(x).permute((2, 0, 1))
@@ -32,5 +32,5 @@ class SegmentationMaskGenerator(MaskGenerator):
         for idx in selection_indices:
             mask[regions[idx]] = 255
 
-        img = Image.fromarray(mask)
+        img = Image.fromarray(mask).resize(img.size)
         return img
