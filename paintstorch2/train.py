@@ -96,7 +96,7 @@ if __name__ == "__main__":
         I3 = nn.DataParallel(pt2_metrics.InceptionV3Features())
     
     else:
-        F1 = torch.jit.load(pt2_model.illust2VEC)
+        F1 = torch.jit.load(pt2_model.ILLUSTRATION2VEC)
         F2 = torch.jit.load(pt2_model.VGG16)
         
         S = pt2_model.Embedding(args.latent_dim)
@@ -106,7 +106,7 @@ if __name__ == "__main__":
         GP = pt2_model.GradientPenalty(λ2)
         MSE = nn.MSELoss()
 
-        I3 = pt2_metrics.InceptrionV3Features()
+        I3 = pt2_metrics.InceptionV3Features()
 
     to_cuda(F1, F2, S, G, D, GP, MSE, I3)
     to_eval(F1, F2, I3)
