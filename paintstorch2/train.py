@@ -282,13 +282,11 @@ if __name__ == "__main__":
         illust = v_illust.squeeze(0).cpu()
         fake = torch.clamp(fake.squeeze(0).cpu(), 0, 1)
 
-        writer.add_image("composition/color", composition[:3], epoch)
-        writer.add_image("composition/mask", composition[None, -1], epoch)
-        writer.add_image("hints/color", hints[:3], epoch)
-        writer.add_image("hints/mask", hints[None, -1], epoch)
-        writer.add_image("style", style, epoch)
-        writer.add_image("illustration", illust, epoch)
-        writer.add_image("fake", fake, epoch)
+        writer.add_image("paintstorch2/in/composition", composition[:3], epoch)
+        writer.add_image("paintstorch2/in/hints", hints[:3], epoch)
+        writer.add_image("paintstorch2/in/style", style, epoch)
+        writer.add_image("paintstorch2/target/illustration", illust, epoch)
+        writer.add_image("paintstorch2/out/fake", fake, epoch)
 
         # ======
         # SAVING
