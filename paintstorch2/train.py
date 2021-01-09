@@ -39,8 +39,8 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--exp",           type=str,  default="")
-    parser.add_argument("--latent_dim",    type=int,  default=128)
-    parser.add_argument("--capacity",      type=int,  default=64)
+    parser.add_argument("--latent_dim",    type=int,  default=64)
+    parser.add_argument("--capacity",      type=int,  default=32)
     parser.add_argument("--epochs",        type=int,  default=200)
     parser.add_argument("--batch_size",    type=int,  default=16)
     parser.add_argument("--preprocessed",  type=str,  default="preprocessed")
