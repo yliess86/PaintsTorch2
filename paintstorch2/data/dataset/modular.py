@@ -44,12 +44,20 @@ class ModularDataset(IllustrationsDataset):
         illustration = self.to_tensor(_illu_512)
         lineart = self.to_tensor(_lineart_512)
         mask = self.to_tensor(_mask_512)
+
+        lineart[lineart > 0.5] = 1.0
+        lineart[lineart <= 0.5] = 0.0
+        
+        mask[mask > 0.5] = 1.0
+        mask[mask <= 0.5] = 0.0
         
         hints_colors = self.to_tensor(T.Resize((h, w))(_hints_512_512.hints))
         hints_mask = self.to_tensor(T.Resize((h, w))(_hints_512_512.mask))
         hints = torch.cat([hints_colors, hints_mask], dim=0)
 
-        interpolation = illustration * (1 - mask) + lineart * mask
+        masked_lineart = lineart * mask
+        masked_illustration = illustration * (1 - mask)
+        interpolation = masked_illustration + masked_lineart
         composition = torch.cat([interpolation, mask], dim=0)
 
         return Data(artist_id, composition, hints, illustration)
