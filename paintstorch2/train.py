@@ -68,9 +68,7 @@ if __name__ == "__main__":
     λ1 = 1e-4                             # Adversarial Loss Weight
     λ2 = 10                               # Gradient Penalty Weight
 
-    dataset = pt2_data.PaintsTorch2Dataset(
-        args.preprocessed, is_train=True,
-    )
+    dataset = pt2_data.PaintsTorch2Dataset(args.preprocessed, is_train=True)
 
     batch_factor = torch.cuda.device_count() if args.data_parallel else 1
     loader = DataLoader(
@@ -123,8 +121,10 @@ if __name__ == "__main__":
     # ===============
     # VALIDATION DATA
     # ===============
-    v_idx = np.random.randint(0, len(dataset))
-    _, v_composition, v_hints, v_style, v_illust = dataset[v_idx]
+    v_dataset = pt2_data.PaintsTorch2Dataset(args.preprocessed, is_train=False)
+
+    v_idx = np.random.randint(0, len(v_dataset))
+    _, v_composition, v_hints, v_style, v_illust = v_dataset[v_idx]
     c, h, w = v_composition.size()
 
     v_composition = v_composition.unsqueeze(0).cuda()
@@ -135,6 +135,8 @@ if __name__ == "__main__":
 
     with torch.no_grad():
         v_features = F1(v_composition[:, :3])
+
+    del v_dataset
     
     # ========
     # TRAINING
