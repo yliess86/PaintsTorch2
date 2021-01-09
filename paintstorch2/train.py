@@ -123,7 +123,8 @@ if __name__ == "__main__":
     # ===============
     # VALIDATION DATA
     # ===============
-    _, v_composition, v_hints, v_style, v_illust = dataset[7]
+    v_idx = np.random.randint(0, len(dataset))
+    _, v_composition, v_hints, v_style, v_illust = dataset[v_idx]
     c, h, w = v_composition.size()
 
     v_composition = v_composition.unsqueeze(0).cuda()
@@ -171,7 +172,6 @@ if __name__ == "__main__":
                 
                 style_embedding = S(style)
                 fake = G(composition, hints, features, style_embedding, noise)
-                fake = composition[:, :3] + fake * composition[:, :-1]
             
             # =============
             # DISCRIMINATOR
@@ -272,13 +272,7 @@ if __name__ == "__main__":
         to_eval(S, G, D)
 
         with torch.no_grad():
-            fake = v_composition[:, :3] + G(
-                v_composition,
-                v_hints,
-                v_features,
-                S(v_style),
-                v_noise,
-            ) * v_composition[:, :-1]
+            fake = G(v_composition, v_hints, v_features, S(v_style), v_noise)
 
         composition = v_composition.squeeze(0).cpu()
         hints = v_hints.squeeze(0).cpu()
