@@ -131,7 +131,6 @@ if __name__ == "__main__":
     v_hints = v_hints.unsqueeze(0).cuda()
     v_style = v_style.unsqueeze(0).cuda()
     v_illust = v_illust.unsqueeze(0).cuda()
-    v_noise = torch.rand((1, 1, h, w)).cuda()
 
     with torch.no_grad():
         v_features = F1(v_composition[:, :3])
@@ -159,7 +158,6 @@ if __name__ == "__main__":
             hints = hints.cuda()
             style = style.cuda()
             illust = illust.cuda()
-            noise = torch.rand((b, 1, h, w)).cuda()
 
             # ======
             # COMMON
@@ -173,7 +171,7 @@ if __name__ == "__main__":
                     features = F1(composition[:, :3])
                 
                 style_embedding = S(style)
-                fake = G(composition, hints, features, style_embedding, noise)
+                fake = G(composition, hints, features, style_embedding)
             
             # =============
             # DISCRIMINATOR
@@ -274,7 +272,7 @@ if __name__ == "__main__":
         to_eval(S, G, D)
 
         with torch.no_grad():
-            fake = G(v_composition, v_hints, v_features, S(v_style), v_noise)
+            fake = G(v_composition, v_hints, v_features, S(v_style))
 
         composition = v_composition.squeeze(0).cpu()
         hints = v_hints.squeeze(0).cpu()

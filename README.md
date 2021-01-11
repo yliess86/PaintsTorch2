@@ -1,49 +1,5 @@
 # PaintsTorch2
 
-## Roadmap
-
-**Dataset**:
-
-- [x] Modular Dataset Pipelines
-- [ ] Dataset Pipelines
-    - Color:
-        - [x] Quantization
-        - [x] kMeans Colors
-        - [ ] Semantic Mean Color Segmentation
-    - Hints:
-        - [x] Random Pixel Activations
-        - [ ] Random Circles
-        - [ ] Random Strokes
-    - Linear:
-        - [X] xDoG
-        - [ ] Canny Edge Filter
-    - Mask:
-        - [x] Patch Masking
-        - [x] kMeans Masking
-        - [ ] Semantic Segmentation
-
-**Model**:
-
-- [x] Generator
-    - [x] ResNetXtBottleneck
-    - [x] ModularConv2D
-    - [x] ToRGB
-    - [x] UpsampleBlock
-- [x] Discriminator
-    - [x] ResNetXtBottleneck
-- [ ] Training Pipeline
-    - [x] Gradient Penalty
-    - [x] Classic cWGAN-GP Training Pipeline
-    - [x] Spectral Normalization
-    - [x] Use DataParallel
-    - [x] Use `torch.cuda.amp` for Autamatic Mixed Precision
-    - [x] Step Learning Rate Decay
-
-**Metrics**
-
-- [x] FID Score
-- [ ] MOS Score
-
 ## Authors
 
 - Yliess HATI - [Github](https://github.com/yliess86)
