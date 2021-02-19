@@ -1,0 +1,11 @@
+Pillow
+numpy
+numba
+opencv-python
+scipy
+scikit-image
+scikit-learn
+tqdm
+tensorboard
+beautifultable
+lpips
