@@ -147,3 +147,4 @@ cython_debug/
 /experiments/
 /checkpoints/
 /models/**/checkpoint_*.pth
+*.pth
