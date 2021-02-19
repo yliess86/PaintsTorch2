@@ -140,6 +140,7 @@ parser.add_argument("--batch_size",    type=int, default=4)
 parser.add_argument("--num_workers",   type=int, default=4)
 parser.add_argument("--dataset",       type=str, default="./images_full")
 parser.add_argument("--model",         type=str, required=True)
+parser.add_argument("--bn",            action="store_true")
 args = parser.parse_args()
 
 images = args.dataset
@@ -147,7 +148,7 @@ preps = f"{(images[:-1] if images.endswith('/') else images)}_preprocessed"
 
 ckpt = torch.load(args.model)
 
-G = nn.DataParallel(Generator(args.features))
+G = nn.DataParallel(Generator(args.features, bn=args.bn))
 G.load_state_dict(ckpt["G"] if "G" in ckpt.keys() else ckpt)
 G = G.module.eval().cuda()
 

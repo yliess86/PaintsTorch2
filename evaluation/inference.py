@@ -12,6 +12,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument("-x",      type=str, required=True)
 parser.add_argument("-c",      type=str, required=False)
 parser.add_argument("--model", type=str, required=True)
+parser.add_argument("--bn",    action="store_true")
 args = parser.parse_args()
 
 normalize = T.Normalize((0.5, ) * 3, (0.5, ) * 3)
@@ -22,7 +23,7 @@ F1 = torch.jit.trace(F1, fake).cuda()
 
 ckpt = torch.load(args.model)
 
-G = nn.DataParallel(Generator(32))
+G = nn.DataParallel(Generator(32, bn=args.bn))
 G.load_state_dict(ckpt["G"] if "G" in ckpt.keys() else ckpt)
 G = G.module.eval().cuda()
 
@@ -49,7 +50,7 @@ with torch.no_grad():
     y, *_ = G(x, h, F1(x))
     y = x[:, :3] * (1 - mask) + y * mask
 
-y = y.squeeze(0).permute((1, 2, 0)).cpu().numpy()#.clip(-1, 1).squeeze(0).permute((1, 2, 0)).cpu().numpy()
+y = y.squeeze(0).permute((1, 2, 0)).cpu().numpy()
 y = (y * 0.5) + 0.5
 y = Image.fromarray((y * 255).astype(np.uint8))
 y = y.resize(size)

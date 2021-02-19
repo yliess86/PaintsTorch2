@@ -111,10 +111,12 @@ class ResNetXtBottleneck(nn.Module):
         cardinality: int,
         stride: int = 1,
         dilation: int = 1,
+        bn: bool = True,
     ) -> None:
         super(ResNetXtBottleneck, self).__init__()
-        self.reduce = ConvBn2d(ic, oc // 2, kernel_size=1)
-        self.conv = ConvBn2d(
+        conv = ConvBn2d if bn else nn.Conv2d
+        self.reduce = conv(ic, oc // 2, kernel_size=1)
+        self.conv = conv(
             oc // 2,
             oc // 2,
             kernel_size=2 + stride,
@@ -123,7 +125,7 @@ class ResNetXtBottleneck(nn.Module):
             dilation=dilation,
             groups=cardinality,
         )
-        self.expand = ConvBn2d(oc // 2, oc, kernel_size=1)
+        self.expand = conv(oc // 2, oc, kernel_size=1)
         self.shortcut = (
             nn.AvgPool2d(2, stride=stride) if stride > 1 else nn.Identity()
         )
@@ -143,16 +145,18 @@ class DecoderBlock(nn.Module):
         oc: int,
         cardinality: int,
         dilations: List[int],
+        bn: bool = True,
     ) -> None:
         super(DecoderBlock, self).__init__()
-        self.preprocess = ConvBn2d(ic, hc, kernel_size=3, padding=1)
+        conv = ConvBn2d if bn else nn.Conv2d
+        self.preprocess = conv(ic, hc, kernel_size=3, padding=1)
         self.process = nn.ModuleList([
             ResNetXtBottleneck(
-                hc, hc, cardinality=cardinality, dilation=d,
+                hc, hc, cardinality=cardinality, dilation=d, bn=bn,
             ) for d in dilations
         ])
         self.postprocess = nn.Sequential(
-            ConvBn2d(hc, oc, kernel_size=3, padding=1),
+            conv(hc, oc, kernel_size=3, padding=1),
             nn.PixelShuffle(2),
         )
 
@@ -171,31 +175,33 @@ class DecoderBlock(nn.Module):
 
 
 class Generator(nn.Module):
-    def __init__(self, features: int = 64) -> None:
+    def __init__(self, features: int = 64, bn: bool = True) -> None:
         super(Generator, self).__init__()
+        conv = ConvBn2d if bn else nn.Conv2d
+
         f0, f1, f2, f4, f8 = [int(features * f) for f in [0.5, 1, 2, 4, 8]]
         fh = f2 + f1               # Hints Injection
         ff = f8 + 512              # Features Injection
         c0, c1 = f1 // 4, f1 // 2  # Cardinality
 
-        self.convh = ConvBn2d(4, f1, 7, padding=3)
+        self.convh = conv(4, f1, 7, padding=3)
         
-        self.conv1 = ConvBn2d(4, f0, 3, padding=1)
-        self.conv2 = ConvBn2d(f0, f1, 4, stride=2, padding=1)
-        self.conv3 = ConvBn2d(f1, f2, 4, stride=2, padding=1)
-        self.conv4 = ConvBn2d(fh, f4, 4, stride=2, padding=1)
-        self.conv5 = ConvBn2d(f4, f8, 4, stride=2, padding=1)
+        self.conv1 = conv(4, f0, 3, padding=1)
+        self.conv2 = conv(f0, f1, 4, stride=2, padding=1)
+        self.conv3 = conv(f1, f2, 4, stride=2, padding=1)
+        self.conv4 = conv(fh, f4, 4, stride=2, padding=1)
+        self.conv5 = conv(f4, f8, 4, stride=2, padding=1)
 
         dilations5 = [1 for _ in range(20)]
         dilations4 = [1, 1, 2, 2, 4, 4, 2, 1]
         dilations3 = [1, 1, 2, 2, 4, 4, 2, 1]
         dilations2 = [1, 2, 4, 2, 1]
 
-        self.deconv5 = DecoderBlock(ff, f8, f8 * 2, c1, dilations5)
-        self.deconv4 = DecoderBlock(f4 * 2, f4, f4 * 2, c1, dilations4)
-        self.deconv3 = DecoderBlock(f2 * 2, f2, f2 * 2, c1, dilations3)
-        self.deconv2 = DecoderBlock(f1 * 2, f1, f1 * 2, c0, dilations2)
-        self.out = ConvBn2d(f1, 3, 3, padding=1)
+        self.deconv5 = DecoderBlock(ff, f8, f8 * 2, c1, dilations5, bn=bn)
+        self.deconv4 = DecoderBlock(f4 * 2, f4, f4 * 2, c1, dilations4, bn=bn)
+        self.deconv3 = DecoderBlock(f2 * 2, f2, f2 * 2, c1, dilations3, bn=bn)
+        self.deconv2 = DecoderBlock(f1 * 2, f1, f1 * 2, c0, dilations2, bn=bn)
+        self.out = conv(f1, 3, 3, padding=1)
 
     def forward(
         self, x: torch.Tensor, h: torch.Tensor, f: torch.Tensor,
@@ -219,8 +225,10 @@ class Generator(nn.Module):
 
 
 class Guide(nn.Module):
-    def __init__(self, features: int = 64) -> None:
+    def __init__(self, features: int = 64, bn: bool = True) -> None:
         super(Guide, self).__init__()
+        conv = ConvBn2d if bn else nn.Conv2d
+
         f1, f2, f4, f8 = [int(features * f) for f in [1, 2, 4, 8]]
         c1, c0 = f1 // 2, f1 // 4
 
@@ -228,10 +236,10 @@ class Guide(nn.Module):
         dilations3 = [1, 1, 2, 2, 4, 4, 2, 1]
         dilations2 = [1, 2, 1]
 
-        self.deconv4 = DecoderBlock(f4 * 2, f4, f4 * 2, c1, dilations4)
-        self.deconv3 = DecoderBlock(f2 * 2, f2, f2 * 2, c1, dilations3)
-        self.deconv2 = DecoderBlock(f1 * 2, f1, f1 * 2, c0, dilations2)
-        self.out = ConvBn2d(f1, 3, kernel_size=3, padding=1)
+        self.deconv4 = DecoderBlock(f4 * 2, f4, f4 * 2, c1, dilations4, bn=bn)
+        self.deconv3 = DecoderBlock(f2 * 2, f2, f2 * 2, c1, dilations3, bn=bn)
+        self.deconv2 = DecoderBlock(f1 * 2, f1, f1 * 2, c0, dilations2, bn=bn)
+        self.out = conv(f1, 3, kernel_size=3, padding=1)
 
     def forward(
         self, x: torch.Tensor, residuals: List[torch.Tensor],
@@ -245,38 +253,40 @@ class Guide(nn.Module):
 
 
 class Discriminator(nn.Module):
-    def __init__(self, features: int = 64) -> None:
+    def __init__(self, features: int = 64, bn: bool = True) -> None:
         super(Discriminator, self).__init__()
+        conv = ConvBn2d if bn else nn.Conv2d
+
         f1, f2, f4, f8 = [int(features * f) for f in [1, 2, 4, 8]]
         ff = f4 + 512  # Features Injection
         c1 = f1 // 8   # Cardinality
 
-        self.conv1 = ConvBn2d(3, f1, 7, padding=3)
-        self.conv2 = ConvBn2d(f1, f1, 4, stride=2, padding=1)
+        self.conv1 = conv(3, f1, 7, padding=3)
+        self.conv2 = conv(f1, f1, 4, stride=2, padding=1)
 
         self.bottleneck1 = nn.Sequential(
-            ResNetXtBottleneck(f1, f1, c1, dilation=1),
-            ResNetXtBottleneck(f1, f1, c1, stride=2, dilation=1),
+            ResNetXtBottleneck(f1, f1, c1, dilation=1, bn=bn),
+            ResNetXtBottleneck(f1, f1, c1, stride=2, dilation=1, bn=bn),
         )
-        self.conv3 = ConvBn2d(f1, f2, 1)
+        self.conv3 = conv(f1, f2, 1)
         
         self.bottleneck2 = nn.Sequential(
-            ResNetXtBottleneck(f2, f2, c1, dilation=1),
-            ResNetXtBottleneck(f2, f2, c1, stride=2, dilation=1),
+            ResNetXtBottleneck(f2, f2, c1, dilation=1, bn=bn),
+            ResNetXtBottleneck(f2, f2, c1, stride=2, dilation=1, bn=bn),
         )
-        self.conv4 = ConvBn2d(f2, f4, 1)
+        self.conv4 = conv(f2, f4, 1)
         
         self.bottleneck3 = nn.Sequential(
-            ResNetXtBottleneck(f4, f4, c1, dilation=1),
-            ResNetXtBottleneck(f4, f4, c1, stride=2, dilation=1),
+            ResNetXtBottleneck(f4, f4, c1, dilation=1, bn=bn),
+            ResNetXtBottleneck(f4, f4, c1, stride=2, dilation=1, bn=bn),
         )
-        self.conv5 = ConvBn2d(ff, f8, 3, padding=1)
+        self.conv5 = conv(ff, f8, 3, padding=1)
         
         self.bottleneck4 = nn.Sequential(*[
-            ResNetXtBottleneck(f8, f8, c1, stride=s, dilation=1)
+            ResNetXtBottleneck(f8, f8, c1, stride=s, dilation=1, bn=bn)
             for s in [1, 2, 1, 2, 1, 2, 1]
         ])
-        self.conv6 = ConvBn2d(f8, f8, 4)
+        self.conv6 = conv(f8, f8, 4)
         
         self.classifier = nn.Linear(f8, 1)
 

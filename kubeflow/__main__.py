@@ -18,6 +18,7 @@ parser.add_argument("--num_workers",   type=int, default=4)
 parser.add_argument("--n_gpu",         type=int, default=1)
 parser.add_argument("--amp",           action="store_true")
 parser.add_argument("--guide",         action="store_true")
+parser.add_argument("--bn",            action="store_true")
 args = parser.parse_args()
 
 
@@ -50,6 +51,7 @@ with Pipeline(PIPELINE_NAME, PIPELINE_DESC, None, EXP, NAMESPACE) as pipeline:
         f"--checkpoint {CKPT_PATH}",
         f"--guide" if args.guide else "",
         f"--parallel" if args.n_gpu > 1 else "",
+        f"--bn" if args.bn else "",
         name="train",
     )
     train.select_node().gpu(args.n_gpu)

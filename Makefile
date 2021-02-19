@@ -2,6 +2,7 @@ FEATURES=32
 BATCHSIZE=8
 MODEL=models/paintstorch2_bn_100/checkpoint_99.pth
 GUIDE=--guide
+BN=--bn
 
 build:
 	sudo docker build -t yliess86/paintstorch2:latest .
@@ -13,7 +14,7 @@ train:
 		--batch_size ${BATCHSIZE} \
 		--features ${FEATURES} \
 		--num_workers ${BATCHSIZE} \
-		${GUIDE}
+		${GUIDE} ${BN}
 
 test:
 	python -m evaluation.fid \

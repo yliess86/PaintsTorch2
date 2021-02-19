@@ -110,6 +110,7 @@ parser.add_argument("--tensorboard",   type=str, default="./experiments")
 parser.add_argument("--checkpoint",    type=str, default="./")
 parser.add_argument("--guide",         action="store_true")
 parser.add_argument("--parallel",      action="store_true")
+parser.add_argument("--bn",            action="store_true")
 args, _ = parser.parse_known_args()
 
 epochs = args.epochs
@@ -146,9 +147,9 @@ loader = DataLoader(
     drop_last=True,
 )
 
-G = Generator(features)
-D = Discriminator(features)
-C = Guide(features) if args.guide else nn.Identity()
+G = Generator(features, bn=args.bn)
+D = Discriminator(features, bn=args.bn)
+C = Guide(features, bn=args.bn) if args.guide else nn.Identity()
 
 fake = torch.zeros((1, 4, 512, 512))
 F1 = torch.jit.trace(Illustration2Vec("./models/i2v.pth").eval(), fake)
