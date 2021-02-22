@@ -173,7 +173,7 @@ schedulerD = StepLR(optimD, **params)
 
 writer = SummaryWriter(log_dir=log_dir)
 
-for epoch in tqdm(range(100), desc="Epoch"):
+for epoch in tqdm(range(args.epochs), desc="Epoch"):
     total_D_fake = 0.0
     total_D_real = 0.0
     total_G_adv = 0.0
