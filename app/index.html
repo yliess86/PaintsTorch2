@@ -1,0 +1,75 @@
+<!doctype html>
+
+<html lang="fr">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, user-scalable=no">
+    
+    <title>PaintsTorch2</title>
+    
+    <link rel="stylesheet" href="style.css">
+    <script src="https://kit.fontawesome.com/70e9e5c58d.js"></script>
+  </head>
+
+  <body>
+    <div id="canvas">
+      <div id="tools" class="actions">
+        <div onclick="set_tool(Tools.PEN, hints_draw_cvs); set_tool(Tools.PEN, mask_draw_cvs);">
+          <i class="fas fa-paint-brush"></i>
+        </div>
+        <div onclick="set_tool(Tools.ERASER, hints_draw_cvs); set_tool(Tools.ERASER, mask_draw_cvs);">
+          <i class="fas fa-eraser"></i>
+        </div>
+
+        <div id="size-5" onclick="set_size(5, hints_draw_cvs); set_size(5, mask_draw_cvs);">
+          <i class="fas fa-circle" style="font-size: 5px"></i>
+        </div>
+        <div id="size-10" onclick="set_size(10, hints_draw_cvs); set_size(10, mask_draw_cvs);">
+          <i class="fas fa-circle" style="font-size: 10px"></i>
+        </div>
+        <div id="size-15" onclick="set_size(15, hints_draw_cvs); set_size(15, mask_draw_cvs);">
+          <i class="fas fa-circle" style="font-size: 15px"></i>
+        </div>
+        <div id="size-20" onclick="set_size(20, hints_draw_cvs); set_size(20, mask_draw_cvs);">
+          <i class="fas fa-circle" style="font-size: 20px"></i>
+        </div>
+      </div>
+
+      <div id="mask-container" class="container">
+        <canvas id="mask" width="512px" height="512px"></canvas>
+        <div id="mask-actions" class="actions">
+          <div onclick="mask_draw_cvs.clear_data();">
+            <i class="fas fa-broom"></i>
+          </div>
+          <div onclick="save_image(mask_draw_cvs.data_cvs, 'mask.png');">
+            <i class="fas fa-save"></i>
+          </div>
+        </div>
+      </div>
+
+      <div id="hints-container" class="container">
+        <canvas id="hints" width="512px" height="512px"></canvas>
+        <div id="hints-actions" class="actions">
+          <div onclick="hints_draw_cvs.clear_data();">
+            <i class="fas fa-broom"></i>
+          </div>
+          <div onclick="save_image(hints_draw_cvs.data_cvs, 'hints.png');">
+            <i class="fas fa-save"></i>
+          </div>
+        </div>
+      </div>
+      
+      <div id="illustration-container" class="container">
+        <canvas id="illustration" width="512px" height="512px"></canvas>
+        <div id="illustration-actions" class="actions">
+          <div><i class="fas fa-upload"></i></div>
+          <div onclick="save_image(illustration_cvs, 'illustration.png');">
+            <i class="fas fa-save"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="script.js"></script>
+  </body>
+</html>

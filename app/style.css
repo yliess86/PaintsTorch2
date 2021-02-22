@@ -1,0 +1,81 @@
+html, body {
+    margin: 0px;
+    padding: 0px;
+    background-color: #2c2c2c;
+    font-family: Verdana, Geneva, Tahoma, sans-serif;
+}
+
+.container {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    display: grid;
+    gap: 10px;
+    grid-template-rows: 3fr, 1fr;
+    grid-template-areas:
+    "c"
+    "a";
+    justify-content: center;
+    align-items: center;
+}
+
+#canvas {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+    display: grid;
+    gap: 25px;
+    grid-template-areas:
+        ". . . . ."
+        ". t t t ."
+        ". m h i ."
+        ". . . . .";
+    justify-content: center;
+    align-items: center;
+}
+
+#mask, #hints, #illustration {
+    width: 512px;
+    height: 512px;
+    border-radius: 25px;
+    align-self: center;
+    justify-self: center;
+    background-color: white;
+}
+#mask, #hints { cursor: none; }
+
+#mask-container { grid-area: m; }
+#hints-container { grid-area: h; }
+#illustration-container { grid-area: i; }
+#tools { grid-area: t; }
+
+#mask, #hints, #illustration { grid-area: c; }
+#mask-actions, #hints-actions, #illustration-actions { grid-area: a; }
+
+.actions {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    gap: 25px;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+}
+.actions div {
+    display: flex;
+    grid-area: a;
+    width: 60px;
+    height: 60px;
+    border-radius: 15px;
+    background-color: #4e4e4e;
+    color: #ffffff;
+    cursor: pointer;
+    text-align: center;
+    justify-content: center;
+    align-items: center;
+}
+.actions div:hover {
+    background-color: #3a3a3a;
+    color: #bebebe;
+}
