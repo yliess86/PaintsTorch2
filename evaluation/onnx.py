@@ -3,6 +3,7 @@ from paintstorch.network import Generator, Illustration2Vec
 import argparse
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 
 class PaintsTorch2(nn.Module):
@@ -15,7 +16,6 @@ class PaintsTorch2(nn.Module):
         
         self.G = G.module.eval().cpu()
         self.F1 = Illustration2Vec(f1).eval().cpu()
-
 
     def forward(self, x: torch.Tensor, h: torch.Tensor) -> torch.Tensor:
         y, *_ = self.G(x, h, self.F1(x))
