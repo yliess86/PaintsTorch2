@@ -1,5 +1,6 @@
 {
      "[python]": {
         "editor.rulers": [79]
-     }
+   },
+   "python.pythonPath": "/home/yliess/anaconda3/envs/python38/bin/python"
 }

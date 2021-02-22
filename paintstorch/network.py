@@ -115,6 +115,7 @@ class ResNetXtBottleneck(nn.Module):
     ) -> None:
         super(ResNetXtBottleneck, self).__init__()
         conv = ConvBn2d if bn else nn.Conv2d
+        
         self.reduce = conv(ic, oc // 2, kernel_size=1)
         self.conv = conv(
             oc // 2,
@@ -149,6 +150,7 @@ class DecoderBlock(nn.Module):
     ) -> None:
         super(DecoderBlock, self).__init__()
         conv = ConvBn2d if bn else nn.Conv2d
+
         self.preprocess = conv(ic, hc, kernel_size=3, padding=1)
         self.process = nn.ModuleList([
             ResNetXtBottleneck(

@@ -22,14 +22,16 @@ test:
 		--batch_size ${BATCHSIZE} \
 		--num_workers ${BATCHSIZE} \
 		--dataset dataset \
-		--model ${MODEL}
+		--model ${MODEL} \
+		 ${BN}
 
 	python -m evaluation.perceptual \
 		--features ${FEATURES} \
 		--batch_size ${BATCHSIZE} \
 		--num_workers ${BATCHSIZE} \
 		--dataset dataset \
-		--model ${MODEL}
+		--model ${MODEL} \
+		 ${BN}
 
 	python -m evaluation.data \
 		--dataset dataset

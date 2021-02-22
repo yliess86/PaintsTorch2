@@ -32,7 +32,7 @@ def stitch(sample: Sample) -> np.ndarray:
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--dataset", type=str, default="./images_full")
+parser.add_argument("--dataset", type=str, default="./dataset")
 args = parser.parse_args()
 
 images = args.dataset

@@ -102,10 +102,10 @@ def test(
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--features",      type=int, default=32)
-parser.add_argument("--epochs",        type=int, default=100)
+parser.add_argument("--epochs",        type=int, default=40)
 parser.add_argument("--batch_size",    type=int, default=4)
 parser.add_argument("--num_workers",   type=int, default=4)
-parser.add_argument("--dataset",       type=str, default="./images_full")
+parser.add_argument("--dataset",       type=str, default="./dataset")
 parser.add_argument("--tensorboard",   type=str, default="./experiments")
 parser.add_argument("--checkpoint",    type=str, default="./")
 parser.add_argument("--guide",         action="store_true")
