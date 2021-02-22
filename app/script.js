@@ -1,3 +1,54 @@
+const IMG_W   = 512;
+const IMG_H   = 512;
+const SQR_IMG = IMG_W * IMG_H;
+
+
+paintstorch = async function(session, input, mask, hints, ctx) {
+    let input_tensor = new Tensor(new Float32Array(4 * IMG_H * IMG_W), "float32", [1, 4, IMG_H, IMG_W]);
+    let hints_tensor = new Tensor(new Float32Array(4 * IMG_H / 4 * IMG_W / 4), "float32", [1, 4, IMG_H / 4, IMG_W / 4]);
+
+    for(let y = 0; y < IMG_H; y++) for(let x = 0; x < IMG_W; x++) {
+        let pos = (y * IMG_W + x) * 4;
+
+        input_tensor[(y * IMG_W + x) + 0 * SQR_IMG] = input[pos + 0] / 255.0;
+        input_tensor[(y * IMG_W + x) + 1 * SQR_IMG] = input[pos + 1] / 255.0;
+        input_tensor[(y * IMG_W + x) + 2 * SQR_IMG] = input[pos + 2] / 255.0;
+        input_tensor[(y * IMG_W + x) + 3 * SQR_IMG] = mask[pos + 0] / 255.0;
+    }
+
+    for(let y = 0; y < IMG_H / 4; y++) for(let x = 0; x < IMG_W / 4; x++) {
+        let pos = (y * IMG_W / 4 + x) * 4;
+
+        hints_tensor[(y * IMG_W/ 4 + x) + 0 * SQR_IMG] = hints[pos + 0] / 255.0;
+        hints_tensor[(y * IMG_W/ 4 + x) + 1 * SQR_IMG] = hints[pos + 1] / 255.0;
+        hints_tensor[(y * IMG_W/ 4 + x) + 2 * SQR_IMG] = hints[pos + 2] / 255.0;
+        hints_tensor[(y * IMG_W/ 4 + x) + 3 * SQR_IMG] = hints[pos + 3] / 255.0;
+    }
+
+
+    session.run([input_tensor, hints_tensor]).then(output => {
+        const tensor = output.values().next().value;
+        const data = tensor.data;
+        
+        let buffer = new Uint8ClampedArray(IMG_W * IMG_H * 4);
+        let idata = ctx.createImageData(IMG_H, IMG_W);
+        
+        for(let y = 0; y < IMG_H; y++) for(let x = 0; x < IMG_W; x++) {
+            let pos = (y * IMG_W + x) * 4;
+
+            let m = mask[pos + 0] / 255.0;
+            buffer[pos + 0] = ((input[pos + 0] / 255.0) * (1 - m) + data[(y * IMG_W + x) + 0 * SQR_IMG] * m) * 255;
+            buffer[pos + 1] = ((input[pos + 1] / 255.0) * (1 - m) + data[(y * IMG_W + x) + 1 * SQR_IMG] * m) * 255;
+            buffer[pos + 2] = ((input[pos + 2] / 255.0) * (1 - m) + data[(y * IMG_W + x) + 2 * SQR_IMG] * m) * 255;
+            buffer[pos + 3] = 255;
+        }
+
+        idata.data.set(buffer);
+        ctx.putImageData(idata, 0, 0);
+    });
+}
+
+
 const Tools = {
     PEN: "pen",
     ERASER: "eraser",
@@ -54,7 +105,6 @@ class DrawingCanvas {
         this.data_cvs.width = this.cvs.width;
         this.data_cvs.height = this.cvs.height;
         this.data_cvs.id = "data_" + this.cvs.id;
-        console.log(this.data_cvs.id);
 
         this.default_brush = new Brush(color, size, tool);
         this.brush = new Brush(color, size, tool);
@@ -133,6 +183,11 @@ let mask_cvs = document.getElementById("mask");
 let hints_cvs = document.getElementById("hints");
 let illustration_cvs = document.getElementById("illustration");
 
+mask_cvs.width = IMG_W;
+mask_cvs.height = IMG_H;
+hints_cvs.width = IMG_W;
+hints_cvs.height = IMG_H;
+
 let mask_ctx = mask_cvs.getContext("2d");
 let hints_ctx = hints_cvs.getContext("2d");
 let illustration_ctx = illustration_cvs.getContext("2d");
@@ -147,3 +202,17 @@ let hints_draw_cvs = new DrawingCanvas(
 
 set_size = function(size, draw_cvs) { draw_cvs.brush.size = size; };
 set_tool = function(tool, draw_cvs) { draw_cvs.brush.tool = tool; };
+
+
+let session = new onnx.InferenceSession({ backendHint: "webgl" });
+let draw = () => paintstorch(
+    session,
+    illustration_ctx.getImageData(0, 0, IMG_W, IMG_H).data,
+    mask_draw_cvs.data_ctx.getImageData(0, 0, IMG_W, IMG_H).data,
+    hints_draw_cvs.data_ctx.getImageData(0, 0, IMG_W, IMG_H).data,
+    illustration_ctx
+);
+
+session.loadModel("resources/paintstorch.onnx");
+mask_draw_cvs.cvs.addEventListener("mouseup", event => draw());
+hints_draw_cvs.cvs.addEventListener("mouseup", event => draw());
