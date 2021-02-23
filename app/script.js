@@ -1,51 +1,67 @@
-const IMG_W   = 512;
-const IMG_H   = 512;
+const IMG_W = 512;
+const IMG_H = 512;
 const SQR_IMG = IMG_W * IMG_H;
 
+let draw = () => {};
 
-paintstorch = async function(session, input, mask, hints, ctx) {
-    let input_tensor = new Tensor(new Float32Array(4 * IMG_H * IMG_W), "float32", [1, 4, IMG_H, IMG_W]);
-    let hints_tensor = new Tensor(new Float32Array(4 * IMG_H / 4 * IMG_W / 4), "float32", [1, 4, IMG_H / 4, IMG_W / 4]);
+function resize(scvs, sw, sh, nw, nh) {
+    let cvs = document.createElement("canvas");
+    let ctx = cvs.getContext("2d");
+    cvs.height = nh;
+    cvs.width = nw;
 
-    for(let y = 0; y < IMG_H; y++) for(let x = 0; x < IMG_W; x++) {
-        let pos = (y * IMG_W + x) * 4;
-
-        input_tensor[(y * IMG_W + x) + 0 * SQR_IMG] = input[pos + 0] / 255.0;
-        input_tensor[(y * IMG_W + x) + 1 * SQR_IMG] = input[pos + 1] / 255.0;
-        input_tensor[(y * IMG_W + x) + 2 * SQR_IMG] = input[pos + 2] / 255.0;
-        input_tensor[(y * IMG_W + x) + 3 * SQR_IMG] = mask[pos + 0] / 255.0;
-    }
-
-    for(let y = 0; y < IMG_H / 4; y++) for(let x = 0; x < IMG_W / 4; x++) {
-        let pos = (y * IMG_W / 4 + x) * 4;
-
-        hints_tensor[(y * IMG_W/ 4 + x) + 0 * SQR_IMG] = hints[pos + 0] / 255.0;
-        hints_tensor[(y * IMG_W/ 4 + x) + 1 * SQR_IMG] = hints[pos + 1] / 255.0;
-        hints_tensor[(y * IMG_W/ 4 + x) + 2 * SQR_IMG] = hints[pos + 2] / 255.0;
-        hints_tensor[(y * IMG_W/ 4 + x) + 3 * SQR_IMG] = hints[pos + 3] / 255.0;
-    }
+    ctx.drawImage(scvs, 0, 0, sw, sh, 0, 0, nw, nh);
+    return ctx.getImageData(0, 0, nw, nh);
+}
 
 
-    session.run([input_tensor, hints_tensor]).then(output => {
-        const tensor = output.values().next().value;
-        const data = tensor.data;
+async function paintstorch(session, input, mask, hints, ctx) {    
+    let input_from = ndarray(new Float32Array(input), [IMG_H, IMG_W, 4]);
+    let hints_from = ndarray(new Float32Array(hints), [IMG_H / 4, IMG_W / 4, 4]);
+    let mask_from  = ndarray(new Float32Array(mask),  [IMG_H, IMG_W, 4]);
+    
+    let input_to = ndarray(new Float32Array(4 * IMG_H * IMG_W), [1, 4, IMG_H, IMG_W]);
+    let hints_to = ndarray(new Float32Array(4 * IMG_H / 4 * IMG_W / 4), [1, 4, IMG_H / 4, IMG_W / 4]);
+    let mask_to = ndarray(new Float32Array(IMG_H * IMG_W), [1, IMG_H, IMG_W]);
+    
+    ndarray.ops.assign(input_from.pick(null, null, 3), mask_from.pick(null, null, 0));
+    ndarray.ops.assign(mask_to.pick(0, null, null), mask_from.pick(null, null, 0));
+    ndarray.ops.divseq(mask_to.pick(0, null, null), 255);
+
+    for(let i = 0; i < 4; i++) {
+        ndarray.ops.assign(input_to.pick(0, i, null, null), input_from.pick(null, null, i));
+        ndarray.ops.assign(hints_to.pick(0, i, null, null), hints_from.pick(null, null, i));
+        ndarray.ops.divseq(input_to.pick(0, i, null, null), 255);
+        ndarray.ops.divseq(hints_to.pick(0, i, null, null), 255);
         
-        let buffer = new Uint8ClampedArray(IMG_W * IMG_H * 4);
-        let idata = ctx.createImageData(IMG_H, IMG_W);
-        
-        for(let y = 0; y < IMG_H; y++) for(let x = 0; x < IMG_W; x++) {
-            let pos = (y * IMG_W + x) * 4;
-
-            let m = mask[pos + 0] / 255.0;
-            buffer[pos + 0] = ((input[pos + 0] / 255.0) * (1 - m) + data[(y * IMG_W + x) + 0 * SQR_IMG] * m) * 255;
-            buffer[pos + 1] = ((input[pos + 1] / 255.0) * (1 - m) + data[(y * IMG_W + x) + 1 * SQR_IMG] * m) * 255;
-            buffer[pos + 2] = ((input[pos + 2] / 255.0) * (1 - m) + data[(y * IMG_W + x) + 2 * SQR_IMG] * m) * 255;
-            buffer[pos + 3] = 255;
+        if(i < 3) {
+            ndarray.ops.subseq(input_to.pick(0, i, null, null), 0.5);
+            ndarray.ops.subseq(hints_to.pick(0, i, null, null), 0.5);
+            ndarray.ops.divseq(input_to.pick(0, i, null, null), 0.5);
+            ndarray.ops.divseq(hints_to.pick(0, i, null, null), 0.5);
         }
+    }
+    
+    let input_tensor = new Tensor(input_to.data, "float32", [1, 4, IMG_H, IMG_W]);
+    let hints_tensor = new Tensor(hints_to.data, "float32", [1, 4, IMG_H / 4, IMG_W / 4]);
+    let mask_tensor = new Tensor(mask_to.data, "float32", [1, IMG_H, IMG_W]);
+    
+    let output_map = await session.run([input_tensor, hints_tensor, mask_tensor]);
+    let output_data = ndarray(new Float32Array(output_map.values().next().value.data), [1, 3, IMG_H, IMG_W]);
+    let output_to = ndarray(new Float32Array(IMG_H * IMG_W * 4), [IMG_H, IMG_W, 4]);
+    
+    for(let i = 0; i < 3; i++) {
+        ndarray.ops.mulseq(output_data.pick(0, i, null, null), 0.5);
+        ndarray.ops.addseq(output_data.pick(0, i, null, null), 0.5);
+        ndarray.ops.mulseq(output_data.pick(0, i, null, null), 255);
+        ndarray.ops.assign(output_to.pick(null, null, i), output_data.pick(0, i, null, null));
+    }
 
-        idata.data.set(buffer);
-        ctx.putImageData(idata, 0, 0);
-    });
+    ndarray.ops.assigns(output_to.pick(null, null, 3), 255);
+
+    const data = Uint8ClampedArray.from(output_to.data);
+    const img_data = new ImageData(data, IMG_W, IMG_H);
+    ctx.putImageData(img_data, 0, 0);
 }
 
 
@@ -134,7 +150,6 @@ class DrawingCanvas {
     }
 
     clear() {
-        this.ctx.clearRect(0, 0, this.cvs.width, this.cvs.height);
         this.ctx.fillStyle = this.clear_color;
         this.ctx.fillRect(0, 0, this.cvs.width, this.cvs.height);
     }
@@ -143,6 +158,14 @@ class DrawingCanvas {
         this.data_ctx.fillStyle = this.clear_color;
         this.data_ctx.fillRect(0, 0, this.data_cvs.width, this.data_cvs.height);
         this.clear();
+        draw();
+    }
+
+    fill_data() {
+        this.data_ctx.fillStyle = this.cursor_color;
+        this.data_ctx.fillRect(0, 0, this.data_cvs.width, this.data_cvs.height);
+        this.clear();
+        draw();
     }
 
     get_brush_position(event) {
@@ -170,7 +193,7 @@ class DrawingCanvas {
 }
 
 
-save_image = function(cvs, filename) {
+function save_image(cvs, filename) {
     let a = document.createElement("a");
     a.setAttribute("download", filename);
     a.setAttribute("href", cvs.toDataURL("image/jpg"));
@@ -179,40 +202,80 @@ save_image = function(cvs, filename) {
 }
 
 
+let preview = document.getElementById("preview");
 let mask_cvs = document.getElementById("mask");
 let hints_cvs = document.getElementById("hints");
 let illustration_cvs = document.getElementById("illustration");
+let illustration_data_cvs = document.createElement("canvas");
 
-mask_cvs.width = IMG_W;
-mask_cvs.height = IMG_H;
-hints_cvs.width = IMG_W;
-hints_cvs.height = IMG_H;
+mask_cvs.width = hints_cvs.width = illustration_cvs.width = illustration_data_cvs.width = IMG_W;
+mask_cvs.height = hints_cvs.height = illustration_cvs.height = illustration_data_cvs.height = IMG_H;
 
 let mask_ctx = mask_cvs.getContext("2d");
 let hints_ctx = hints_cvs.getContext("2d");
 let illustration_ctx = illustration_cvs.getContext("2d");
+let illustration_data_ctx = illustration_data_cvs.getContext("2d");
 
 let mask_draw_cvs = new DrawingCanvas(
-    mask_cvs, mask_ctx, "#000000", "#ffffff", "#ffffff", 5, Tools.PEN
+    mask_cvs, mask_ctx, "#000000", "#ffffff", "#ffffff", 8, Tools.PEN
 );
 let hints_draw_cvs = new DrawingCanvas(
-    hints_cvs, hints_ctx, "#ffffffff", "#000000", "#000000", 5, Tools.PEN
+    hints_cvs, hints_ctx, "#ffffffff", "#000000", "#000000", 8, Tools.PEN
 );
 
 
-set_size = function(size, draw_cvs) { draw_cvs.brush.size = size; };
-set_tool = function(tool, draw_cvs) { draw_cvs.brush.tool = tool; };
+function set_size(size) { hints_draw_cvs.brush.size = mask_draw_cvs.brush.size = size; };
+function set_tool(tool) { hints_draw_cvs.brush.tool = mask_draw_cvs.brush.tool = tool; };
+function pick_color(element) {
+    let input = document.createElement("input");
+    input.addEventListener("change", event => {
+        element.style.backgroundColor = event.target.value;
+        hints_draw_cvs.brush.color = event.target.value;
+    });
+    input.setAttribute("type", "color");
+    input.click();
+}
 
 
 let session = new onnx.InferenceSession({ backendHint: "webgl" });
-let draw = () => paintstorch(
-    session,
-    illustration_ctx.getImageData(0, 0, IMG_W, IMG_H).data,
-    mask_draw_cvs.data_ctx.getImageData(0, 0, IMG_W, IMG_H).data,
-    hints_draw_cvs.data_ctx.getImageData(0, 0, IMG_W, IMG_H).data,
-    illustration_ctx
-);
-
 session.loadModel("resources/paintstorch.onnx");
+
+draw = () => {
+    paintstorch(
+        session,
+        illustration_data_ctx.getImageData(0, 0, IMG_W, IMG_H).data,
+        mask_draw_cvs.data_ctx.getImageData(0, 0, IMG_W, IMG_H).data,
+        resize(hints_draw_cvs.data_cvs, IMG_W, IMG_H, IMG_W / 4, IMG_H / 4).data,
+        illustration_ctx
+    )
+};
+
 mask_draw_cvs.cvs.addEventListener("mouseup", event => draw());
 hints_draw_cvs.cvs.addEventListener("mouseup", event => draw());
+
+
+function upload(ctx, data_ctx) {
+    let input = document.createElement("input");
+    input.setAttribute("type", "file");
+    input.addEventListener("change", () => {
+        let file = input.files[0];
+        if (file) {
+            let reader = new FileReader();
+            reader.onload = event => {
+                let img = new Image();
+                img.onload = event => {
+                    ctx.drawImage(img, 0, 0, IMG_W, IMG_H);
+                    data_ctx.drawImage(img, 0, 0, IMG_W, IMG_H);
+                    
+                    preview.style.backgroundImage = "url(" + img.src + ")";
+                    preview.style.backgroundSize = "100% 100%";
+                    
+                    draw();
+                };
+                img.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+    });
+    input.click();
+}

@@ -37,7 +37,6 @@ html, body {
 #mask, #hints, #illustration {
     width: 512px;
     height: 512px;
-    border-radius: 25px;
     align-self: center;
     justify-self: center;
     background-color: white;
