@@ -224,8 +224,30 @@ let hints_draw_cvs = new DrawingCanvas(
 );
 
 
-function set_size(size) { hints_draw_cvs.brush.size = mask_draw_cvs.brush.size = size; };
-function set_tool(tool) { hints_draw_cvs.brush.tool = mask_draw_cvs.brush.tool = tool; };
+function set_size(size) {
+    hints_draw_cvs.brush.size = mask_draw_cvs.brush.size = size;
+
+    [2, 8, 16, 32].forEach(s => {
+        if (s == size) document.getElementById("size-" + s).classList.add("active");
+        else document.getElementById("size-" + s).classList.remove("active");
+    });
+};
+
+function set_tool(tool) {
+     hints_draw_cvs.brush.tool = mask_draw_cvs.brush.tool = tool;
+
+    switch(tool) {
+        case Tools.PEN:
+            document.getElementById("tools-pen").classList.add("active");
+            document.getElementById("tools-eraser").classList.remove("active");
+            break;
+        case Tools.ERASER:
+            document.getElementById("tools-pen").classList.remove("active");
+            document.getElementById("tools-eraser").classList.add("active");
+            break;
+    }
+};
+
 function pick_color(element) {
     let input = document.createElement("input");
     input.addEventListener("change", event => {

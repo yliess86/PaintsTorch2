@@ -16,17 +16,17 @@
   <body>
     <div id="canvas">
       <div id="tools" class="actions">
-        <div onclick="set_tool(Tools.PEN);">
+        <div id="tools-pen" onclick="set_tool(Tools.PEN);" class="active">
           <i class="fas fa-paint-brush"></i>
         </div>
-        <div onclick="set_tool(Tools.ERASER);">
+        <div id="tools-eraser" onclick="set_tool(Tools.ERASER);">
           <i class="fas fa-eraser"></i>
         </div>
 
         <div id="size-2" onclick="set_size(2);">
           <i class="fas fa-circle" style="font-size: 2px"></i>
         </div>
-        <div id="size-8" onclick="set_size(8);">
+        <div id="size-8" onclick="set_size(8);" class="active">
           <i class="fas fa-circle" style="font-size: 8px"></i>
         </div>
         <div id="size-16" onclick="set_size(16);">

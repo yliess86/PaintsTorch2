@@ -78,3 +78,8 @@ html, body {
     background-color: #3a3a3a;
     color: #bebebe;
 }
+.actions .active {
+    pointer-events: none;
+    background-color: #3a3a3a;
+    color: #bebebe;
+}
