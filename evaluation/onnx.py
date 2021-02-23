@@ -17,28 +17,36 @@ class PaintsTorch2(nn.Module):
         self.G = G.module.eval().cpu()
         self.F1 = Illustration2Vec(f1).eval().cpu()
 
-    def forward(self, x: torch.Tensor, h: torch.Tensor) -> torch.Tensor:
+    def forward(
+        self, x: torch.Tensor, h: torch.Tensor, m: torch.Tensor,
+    ) -> torch.Tensor:
         y, *_ = self.G(x, h, self.F1(x))
-        return y
+        y = x[:, :3] * (1 - m[:, None]) + y * m[:, None]
+        return y.clip(-1, 1)
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--features",      type=int, default=32)
-parser.add_argument("--model",         type=str, required=True)
-parser.add_argument("--save",          type=str, required=True)
-parser.add_argument("--bn",            action="store_true")
+parser.add_argument("--features", type=int, default=32)
+parser.add_argument("--model",    type=str, required=True)
+parser.add_argument("--save",     type=str, required=True)
+parser.add_argument("--bn",       action="store_true")
 args = parser.parse_args()
 
 
 model = PaintsTorch2(args.features, args.model, "./models/i2v.pth", args.bn)
 model = model.eval()
 
-fake = torch.zeros((1, 4, 512, 512)), torch.zeros((1, 4, 128, 128))
+fake = (
+    torch.zeros((1, 4, 512, 512)),
+    torch.zeros((1, 4, 128, 128)),
+    torch.zeros((1, 512, 512)),
+)
+
 torch.onnx.export(
     model,
     fake,
     args.save,
     verbose=True,
-    input_names=["input", "hints"],
+    input_names=["input", "hints", "mask"],
     output_names=["illustration"],
 )
