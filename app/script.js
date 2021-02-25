@@ -141,6 +141,7 @@ class DrawingCVS {
 
         this.display_cvs.addEventListener("mouseout", () => {
             this.in = false;
+            this.brush.disable();
             this.update();
         });
         
@@ -191,9 +192,15 @@ class DrawingCVS {
     };
     
     clear = () => {
+        this.data_ctx.clearRect(0, 0, this.SIZE, this.SIZE);
         this.data_ctx.fillStyle = this.DATA_CLEAR_COLOR;
         this.data_ctx.fillRect(0, 0, this.SIZE, this.SIZE);
-        
+        this.update();
+    };
+
+    fill = () => {
+        this.data_ctx.fillStyle = this.BRUSH_COLOR;
+        this.data_ctx.fillRect(0, 0, this.SIZE, this.SIZE);
         this.update();
     };
 }
@@ -271,22 +278,14 @@ let mask_upload_btn = document.getElementById("mask-upload-btn");
 let hints_upload_btn = document.getElementById("hints-upload-btn");
 let illustration_upload_btn = document.getElementById("illustration-upload-btn");
 
-mask_upload_btn.addEventListener("click", () => upload(mask_dcvs.data_ctx, mask_dcvs));
-hints_upload_btn.addEventListener("click", () => upload(hints_dcvs.data_ctx, hints_dcvs));
-illustration_upload_btn.addEventListener("click", () => {
-    upload(illustration_dcvs.data_ctx, illustration_dcvs, () => {
-        mask_dcvs.bckg_ctx.drawImage(illustration_dcvs.data_cvs, 0, 0, 512, 512);
-        hints_dcvs.bckg_ctx.drawImage(illustration_dcvs.data_cvs, 0, 0, 512, 512);
-    });
-});
-
 let mask_save_btn = document.getElementById("mask-save-btn");
 let hints_save_btn = document.getElementById("hints-save-btn");
 let illustration_save_btn = document.getElementById("illustration-save-btn");
 
-mask_save_btn.addEventListener("click", () => save(mask_dcvs.data_cvs, "mask.png"));
-hints_save_btn.addEventListener("click", () => save(hints_dcvs.data_cvs, "hints.png"));
-illustration_save_btn.addEventListener("click", () => save(illustration_dcvs.data_cvs, "illustration.png"));
+let mask_clean_btn = document.getElementById("mask-clean-btn");
+let hints_clean_btn = document.getElementById("hints-clean-btn");
+
+let mask_fill_btn = document.getElementById("mask-fill-btn");
 
 let color_btn = document.getElementById("color-btn");
 let pen_btn = document.getElementById("pen-btn");
@@ -299,6 +298,24 @@ let size_btns = {
     HUGE  : document.getElementById("size-huge-btn"),
 };
 
+mask_upload_btn.addEventListener("click", () => upload(mask_dcvs.data_ctx, mask_dcvs));
+hints_upload_btn.addEventListener("click", () => upload(hints_dcvs.data_ctx, hints_dcvs));
+illustration_upload_btn.addEventListener("click", () => {
+    upload(illustration_dcvs.data_ctx, illustration_dcvs, () => {
+        mask_dcvs.bckg_ctx.drawImage(illustration_dcvs.data_cvs, 0, 0, 512, 512);
+        hints_dcvs.bckg_ctx.drawImage(illustration_dcvs.data_cvs, 0, 0, 512, 512);
+    });
+});
+
+mask_save_btn.addEventListener("click", () => save(mask_dcvs.data_cvs, "mask.png"));
+hints_save_btn.addEventListener("click", () => save(hints_dcvs.data_cvs, "hints.png"));
+illustration_save_btn.addEventListener("click", () => save(illustration_dcvs.data_cvs, "illustration.png"));
+
+mask_clean_btn.addEventListener("click", () => mask_dcvs.clear());
+hints_clean_btn.addEventListener("click", () => hints_dcvs.clear());
+
+mask_fill_btn.addEventListener("click", () => mask_dcvs.fill());
+
 color_btn.addEventListener("click", () => {
     let input = document.createElement("input");
     input.addEventListener("change", event => {
@@ -307,19 +324,16 @@ color_btn.addEventListener("click", () => {
     input.setAttribute("type", "color");
     input.click();
 });
-
 pen_btn.addEventListener("click", () => {
     pen_btn.classList.add("active");
     eraser_btn.classList.add("active");
     mask_dcvs.brush.tool = hints_dcvs.brush.tool = Tools.PEN;
 });
-
 eraser_btn.addEventListener("click", () => {
     eraser_btn.classList.add("active");
     pen_btn.classList.add("active");
     mask_dcvs.brush.tool = hints_dcvs.brush.tool = Tools.ERASER;
 });
-
 Object.entries(size_btns).forEach(([key, btn]) => {
     btn.addEventListener("click", () => {
         mask_dcvs.brush.size = hints_dcvs.brush.size = Sizes[key];
