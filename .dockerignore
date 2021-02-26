@@ -138,6 +138,7 @@ dmypy.json
 cython_debug/
 
 # Project Ignores
+/docs/
 /dataset/
 /dataset_prep/
 /dataset_preprocessed/
