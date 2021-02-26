@@ -17,6 +17,12 @@ class PaintsTorch2(nn.Module):
         self.G = G.module.eval().cpu()
         self.F1 = Illustration2Vec(f1).eval().cpu()
 
+        for param in self.G.parameters():
+            param.requires_grad = False
+        for param in self.F1.parameters():
+            param.requires_grad = False
+
+    @torch.no_grad()
     def forward(
         self, x: torch.Tensor, h: torch.Tensor, m: torch.Tensor,
     ) -> torch.Tensor:
@@ -49,4 +55,6 @@ torch.onnx.export(
     verbose=True,
     input_names=["input", "hints", "mask"],
     output_names=["illustration"],
+    opset_version=9,
+    do_constant_folding=True,
 )

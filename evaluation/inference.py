@@ -37,7 +37,7 @@ x = torch.from_numpy(x).permute((2, 0, 1)).unsqueeze(0).cuda().float()
 x[:, :3] = normalize(x[:, :3])
 
 h = (
-    np.random.rand(128, 128, 4) * 255 if args.c is None else
+    np.zeros((128, 128, 4)) * 255 if args.c is None else
     Image.open(args.c).convert("RGBA").resize((128, 128))
 )
 h = np.array(h) / 255
