@@ -9,3 +9,4 @@ tqdm
 tensorboard
 beautifultable
 lpips
+onnx_runtime
