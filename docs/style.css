@@ -15,6 +15,10 @@ body {
     align-items: center;
 }
 
+#logo {
+    max-width: 15%;
+}
+
 canvas {
     display: block;
     width: 512px;
