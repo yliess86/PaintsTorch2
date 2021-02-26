@@ -103,7 +103,7 @@ class PaintsTorch2 {
 }
 
 
-const Tools = { PEN: "pen", ERASER: "eraser" };
+const Tools = { PEN: "pen", ERASER: "eraser", COLOR_PICKER: "color-picker" };
 const Sizes = { TINY: 2, SMALL: 8, MEDIUM: 16, BIG: 32, HUGE: 64 };
 
 
@@ -140,6 +140,18 @@ class Brush {
         ctx.stroke();
 
         ctx.closePath();
+
+        if (this.tool == Tools.COLOR_PICKER) {
+            ctx.beginPath();
+
+            ctx.fillStyle = "rgb(" + value + "," + value + "," + value + ")";
+            ctx.fillRect(position.x + 1, position.y + 1, -27, -27);
+
+            ctx.fillStyle = "rgb(" + color[0] + "," + color[1] + "," + color[2] + ")";
+            ctx.fillRect(position.x, position.y, -25, -25);
+
+            ctx.closePath();
+        }
     };
 
     get_position = (cvs, event) => {
@@ -150,7 +162,7 @@ class Brush {
 
 
 class DrawingCVS {
-    constructor(id, clear_color, data_clear_color, brush_color, bckg_cvs) {
+    constructor(id, clear_color, data_clear_color, brush_color, bckg_cvs, color_viewer) {
         this.CLEAR_COLOR = clear_color;
         this.DATA_CLEAR_COLOR = data_clear_color;
         this.BRUSH_COLOR = brush_color;
@@ -166,13 +178,28 @@ class DrawingCVS {
 
         this.bckg_cvs = bckg_cvs;
         this.bckg_ctx = this.bckg_cvs.getContext("2d");
+
+        this.color_viewer = color_viewer;
         
         this.brush = new Brush(this.BRUSH_COLOR);
         this.in = false;
 
         this.display_cvs.addEventListener("mousemove", event => this.update(event));
-        this.display_cvs.addEventListener("mousedown",    () => this.brush.enable());
-        this.display_cvs.addEventListener("mouseup",      () => this.brush.disable());
+
+        this.display_cvs.addEventListener("mousedown", () => {
+            if(this.brush.tool != Tools.COLOR_PICKER) this.brush.enable();
+        });
+
+        this.display_cvs.addEventListener("mouseup", () => {
+            if(this.brush.tool == Tools.COLOR_PICKER) {
+                const position = this.brush.position.current;
+                const color = this.data_ctx.getImageData(position.x, position.y, 1, 1).data;
+
+                this.brush.color = "rgb(" + color[0] + "," + color[1] + "," + color[2] + ")";
+                this.color_viewer.style.backgroundColor = "rgb(" + color[0] + "," + color[1] + "," + color[2] + ")";
+            }
+            this.brush.disable();
+        });
         
         this.display_cvs.addEventListener("mouseenter", () => {
             this.in = true;
@@ -195,8 +222,10 @@ class DrawingCVS {
         this.data_ctx.beginPath();
         
         const is_pen = this.brush.tool == Tools.PEN;
+        const is_plain = this.DATA_CLEAR_COLOR[8] == "f";
         
-        this.data_ctx.strokeStyle = is_pen? this.brush.color: this.CLEAR_COLOR;
+        this.data_ctx.globalCompositeOperation = is_pen? "source-over": is_plain? "source-over": "destination-out";
+        this.data_ctx.strokeStyle = is_pen? this.brush.color: is_plain? this.DATA_CLEAR_COLOR: null;
         this.data_ctx.lineWidth = this.brush.size;
         
         const current = this.brush.position.current;
@@ -329,24 +358,6 @@ let save = (cvs, filename) => {
 };
 
 
-let illustration_dcvs = new DisplayCVS("illustration");
-let bckg_cvs = illustration_dcvs.bckg_cvs;
-
-let mask_dcvs = new DrawingCVS("mask", "#000000ff", "#000000ff", "#ffffffff", bckg_cvs);
-let hints_dcvs = new DrawingCVS("hints", "#000000ff", "#00000000", "#ffffffff", bckg_cvs);
-
-let paintstorch = new PaintsTorch2();
-let paint = () => paintstorch.draw(illustration_dcvs.bckg_ctx, mask_dcvs.data_ctx, hints_dcvs.data_cvs, data => {
-    illustration_dcvs.data_ctx.putImageData(data, 0, 0);
-    
-    illustration_dcvs.update();
-    mask_dcvs.update();
-    hints_dcvs.update();
-});
-
-mask_dcvs.display_cvs.addEventListener("mouseup", paint);
-hints_dcvs.display_cvs.addEventListener("mouseup", paint);
-
 let mask_upload_btn = document.getElementById("mask-upload-btn");
 let hints_upload_btn = document.getElementById("hints-upload-btn");
 let illustration_upload_btn = document.getElementById("illustration-upload-btn");
@@ -363,6 +374,7 @@ let mask_fill_btn = document.getElementById("mask-fill-btn");
 let color_btn = document.getElementById("color-btn");
 let pen_btn = document.getElementById("pen-btn");
 let eraser_btn = document.getElementById("eraser-btn");
+let color_picker_btn = document.getElementById("color-picker-btn");
 let size_btns = {
     TINY  : document.getElementById("size-tiny-btn"),
     SMALL : document.getElementById("size-small-btn"),
@@ -370,6 +382,24 @@ let size_btns = {
     BIG   : document.getElementById("size-big-btn"),
     HUGE  : document.getElementById("size-huge-btn"),
 };
+
+let illustration_dcvs = new DisplayCVS("illustration");
+let bckg_cvs = illustration_dcvs.bckg_cvs;
+
+let mask_dcvs = new DrawingCVS("mask", "#000000ff", "#000000ff", "#ffffffff", bckg_cvs, color_btn);
+let hints_dcvs = new DrawingCVS("hints", "#000000ff", "#00000000", "#ffffffff", bckg_cvs, color_btn);
+
+let paintstorch = new PaintsTorch2();
+let paint = () => paintstorch.draw(illustration_dcvs.bckg_ctx, mask_dcvs.data_ctx, hints_dcvs.data_cvs, data => {
+    illustration_dcvs.data_ctx.putImageData(data, 0, 0);
+    
+    illustration_dcvs.update();
+    mask_dcvs.update();
+    hints_dcvs.update();
+});
+
+mask_dcvs.display_cvs.addEventListener("mouseup", () => { if(mask_dcvs.brush.tool != Tools.COLOR_PICKER) paint(); });
+hints_dcvs.display_cvs.addEventListener("mouseup", () => { if(mask_dcvs.brush.tool != Tools.COLOR_PICKER) paint(); });
 
 mask_upload_btn.addEventListener("click", () => upload(mask_dcvs.data_ctx, mask_dcvs, paint));
 hints_upload_btn.addEventListener("click", () => upload(hints_dcvs.data_ctx, hints_dcvs, paint));
@@ -386,10 +416,19 @@ mask_save_btn.addEventListener("click", () => save(mask_dcvs.data_cvs, "mask.png
 hints_save_btn.addEventListener("click", () => save(hints_dcvs.data_cvs, "hints.png"));
 illustration_save_btn.addEventListener("click", () => save(illustration_dcvs.data_cvs, "illustration.png"));
 
-mask_clean_btn.addEventListener("click", () => mask_dcvs.clear());
-hints_clean_btn.addEventListener("click", () => hints_dcvs.clear());
+mask_clean_btn.addEventListener("click", () => {
+    mask_dcvs.clear();
+    paint();
+});
+hints_clean_btn.addEventListener("click", () => {
+    hints_dcvs.clear();
+    paint();
+});
 
-mask_fill_btn.addEventListener("click", () => mask_dcvs.fill());
+mask_fill_btn.addEventListener("click", () => {
+    mask_dcvs.fill();
+    paint();
+});
 
 color_btn.addEventListener("click", () => {
     let input = document.createElement("input");
@@ -401,13 +440,21 @@ color_btn.addEventListener("click", () => {
 });
 pen_btn.addEventListener("click", () => {
     pen_btn.classList.add("active");
-    eraser_btn.classList.add("active");
+    eraser_btn.classList.remove("active");
+    color_picker_btn.classList.remove("active");
     mask_dcvs.brush.tool = hints_dcvs.brush.tool = Tools.PEN;
 });
 eraser_btn.addEventListener("click", () => {
     eraser_btn.classList.add("active");
-    pen_btn.classList.add("active");
+    pen_btn.classList.remove("active");
+    color_picker_btn.classList.remove("active");
     mask_dcvs.brush.tool = hints_dcvs.brush.tool = Tools.ERASER;
+});
+color_picker_btn.addEventListener("click", () => {
+    color_picker_btn.classList.add("active");
+    pen_btn.classList.remove("active");
+    eraser_btn.classList.remove("active");
+    mask_dcvs.brush.tool = hints_dcvs.brush.tool = Tools.COLOR_PICKER;
 });
 Object.entries(size_btns).forEach(([key, btn]) => {
     btn.addEventListener("click", () => {
