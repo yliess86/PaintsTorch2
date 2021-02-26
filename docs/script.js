@@ -60,7 +60,6 @@ class PaintsTorch2 {
         ops.assign(x_ndarray.pick(0, 3, null, null), m_ndarray.pick(0, null, null));
         
         this.normalize_mask(x_ndarray.pick(0, 3, null, null));
-        this.normalize_mask(m_ndarray.pick(0,    null, null));
         this.normalize_mask(h_ndarray.pick(0, 3, null, null));
 
         for(let i = 0; i < 3; i++) {
@@ -69,10 +68,9 @@ class PaintsTorch2 {
         }
         
         let x_tensor = new Tensor(x_ndarray.data, "float32", [1, 4, this.HEIGHT,   this.WIDTH  ]);
-        let m_tensor = new Tensor(m_ndarray.data, "float32", [1,    this.HEIGHT,   this.WIDTH  ]);
         let h_tensor = new Tensor(h_ndarray.data, "float32", [1, 4, this.H_HEIGHT, this.H_WIDTH]);
         
-        const y_map  = await this.session.run([x_tensor, h_tensor, m_tensor]);
+        const y_map  = await this.session.run([x_tensor, h_tensor]);
         const y_data = y_map.values().next().value.data;
         
         let y_from = ndarray(new Float32Array(y_data), [1, 3, this.HEIGHT, this.WIDTH]);

@@ -23,12 +23,11 @@ class PaintsTorch2(nn.Module):
             param.requires_grad = False
 
     @torch.no_grad()
-    def forward(
-        self, x: torch.Tensor, h: torch.Tensor, m: torch.Tensor,
-    ) -> torch.Tensor:
+    def forward(self, x: torch.Tensor, h: torch.Tensor) -> torch.Tensor:
+        mask = x[:, -1].unsqueeze(1)
         y, *_ = self.G(x, h, self.F1(x))
-        y = x[:, :3] * (1 - m[:, None]) + y * m[:, None]
-        return y.clip(-1, 1)
+        y = x[:, :3] * (1 - mask) + y * mask
+        return y
 
 
 parser = argparse.ArgumentParser()
@@ -42,18 +41,14 @@ args = parser.parse_args()
 model = PaintsTorch2(args.features, args.model, "./models/i2v.pth", args.bn)
 model = model.eval()
 
-fake = (
-    torch.zeros((1, 4, 512, 512)),
-    torch.zeros((1, 4, 128, 128)),
-    torch.zeros((1, 512, 512)),
-)
+fake = torch.zeros((1, 4, 512, 512)), torch.zeros((1, 4, 128, 128))
 
 torch.onnx.export(
     model,
     fake,
     args.save,
     verbose=True,
-    input_names=["input", "hints", "mask"],
+    input_names=["input", "hints"],
     output_names=["illustration"],
     opset_version=9,
     do_constant_folding=True,
