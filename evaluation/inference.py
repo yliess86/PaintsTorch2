@@ -8,6 +8,10 @@ import torch.nn as nn
 import onnxruntime as onnx
 
 
+SIZE = 512, 512
+H_SIZE = 128, 128
+
+
 class TorchInference:
     def __init__(self, model: str, features: int, bn: bool = False) -> None:
         fake = torch.zeros((1, 4, 512, 512))
@@ -60,6 +64,7 @@ class OnnxInference:
 parser = argparse.ArgumentParser()
 parser.add_argument("-x",         type=str, required=True)
 parser.add_argument("-c",         type=str, required=False)
+parser.add_argument("-m",         type=str, required=False)
 parser.add_argument("--features", type=int, required=True)
 parser.add_argument("--model",    type=str, required=True)
 parser.add_argument("--bn",       action="store_true")
@@ -75,12 +80,15 @@ model = (
 x = Image.open(args.x).convert("RGB")
 size = x.size
 
-x = np.array(x.resize((512, 512))) / 255
-x = np.concatenate([x, np.ones((*x.shape[:2], 1))], axis=-1)
+x = np.array(x.resize(SIZE)) / 255
+x = np.concatenate([x, (
+    np.ones((*SIZE, 1)) if args.m is None else
+    np.array(Image.open(args.m).convert("L").resize(SIZE))[:, :, None] / 255
+)], axis=-1)
 
 h = np.array(
-    np.zeros((128, 128, 4)) * 255 if args.c is None else
-    Image.open(args.c).convert("RGBA").resize((128, 128))
+    np.zeros((*H_SIZE, 4)) * 255 if args.c is None else
+    Image.open(args.c).convert("RGBA").resize(H_SIZE)
 ) / 255
 h[:, :, -1] = np.sum(h[:, :, :3], axis=-1) != 0 if args.c else 0
 
