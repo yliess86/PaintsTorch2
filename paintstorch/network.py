@@ -1,6 +1,6 @@
 from collections import OrderedDict
 from torchvision.models import vgg16
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 
 import numpy as np
 import torch
@@ -163,9 +163,7 @@ class DecoderBlock(nn.Module):
         )
 
     def forward(
-        self,
-        x: torch.Tensor,
-        residual: torch.Tensor = None,
+        self, x: torch.Tensor, residual: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         if residual is not None:
             x = torch.cat([residual, x], 1)
