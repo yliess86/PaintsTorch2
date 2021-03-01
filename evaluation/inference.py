@@ -59,7 +59,7 @@ x[:, :3] = (x[:, :3] - 0.5) / 0.5
 
 h = np.zeros((*H_SIZE, 4),dtype=np.float32)
 if args.c is not None:
-    h = Image.open(args.c).convert("RGBA").resize(SIZE)
+    h = Image.open(args.c).convert("RGBA").resize(H_SIZE)
     h = np.array(h, dtype=np.float32) / 255
 
 h = h.transpose((2, 0, 1))
@@ -67,5 +67,5 @@ h = np.expand_dims(h, axis=0)
 h[:, :3] = (h[:, :3] - 0.5) / 0.5
 
 y = model(x, h) * 0.5 + 0.5
-y = Image.fromarray((y * 255).astype(np.uint8)).resize(SIZE)
+y = Image.fromarray((y * 255).astype(np.uint8))
 y.show()
