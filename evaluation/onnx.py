@@ -1,21 +1,25 @@
 from paintstorch.network import Generator, Illustration2Vec
 
 import argparse
+import numpy as np
+import onnxruntime as onnx
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
 
 class PaintsTorch2(nn.Module):
-    def __init__(self, features: int, g: str, f1: str, bn: bool) -> None:
+    def __init__(
+        self, features: int, g: str, f1: str, bn: bool = False,
+    ) -> None:
         super(PaintsTorch2, self).__init__()
-
-        ckpt = torch.load(args.model)
+        
+        ckpt = torch.load(g)
         G = nn.DataParallel(Generator(features, bn=bn))
         G.load_state_dict(ckpt["G"] if "G" in ckpt.keys() else ckpt)
-        
-        self.G = G.module.eval().cpu()
+
         self.F1 = Illustration2Vec(f1).eval().cpu()
+        self.G = G.module.eval().cpu()
 
         for param in self.G.parameters():
             param.requires_grad = False
@@ -41,15 +45,28 @@ args = parser.parse_args()
 model = PaintsTorch2(args.features, args.model, "./models/i2v.pth", args.bn)
 model = model.eval()
 
-fake = torch.zeros((1, 4, 512, 512)), torch.zeros((1, 4, 128, 128))
+x, h = torch.randn((2, 4, 512, 512)), torch.randn((2, 4, 128, 128))
+x[:, :3] = (x[:, :3] - 0.5) / 0.5
+h[:, :3] = (h[:, :3] - 0.5) / 0.5
+y_torch = model(x, h).numpy()
 
 torch.onnx.export(
-    model,
-    fake,
-    args.save,
-    verbose=True,
-    input_names=["input", "hints"],
+    model, (x, h), args.save,
+    input_names=["input", "hints", *(n for n, p in model.named_parameters())],
     output_names=["illustration"],
-    opset_version=9,
+    dynamic_axes={
+        "input"       : { 0: "batch" },
+        "hints"       : { 0: "batch" },
+        "illustration": { 0: "batch" },
+    },
     do_constant_folding=True,
+    export_params=True,
+    opset_version=11,
+    verbose=False,
 )
+
+x, h = x.numpy(), h.numpy()
+session = onnx.InferenceSession(args.save)
+y_onnx = session.run(["illustration"], {"input": x, "hints": h})[0]
+
+print("Pytorch == Onnx ?", np.allclose(y_torch, y_onnx))

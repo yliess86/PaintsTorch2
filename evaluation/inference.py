@@ -34,9 +34,7 @@ class TorchInference:
             y = x[:, :3] * (1 - mask) + y * mask
         y = y.squeeze(0).permute((1, 2, 0)).cpu().numpy()
 
-        y = (y * 0.5) + 0.5
-        y = (y * 255).astype(np.uint8)
-        return y
+        return ((y * 0.5 + 0.5) * 255).astype(np.uint8)
 
 
 class OnnxInference:
@@ -55,9 +53,8 @@ class OnnxInference:
 
         y = self.sess.run(["illustration"], { "input": x, "hints": h })[0][0]
         y = np.transpose(y, axes=(1, 2, 0))
-        y = (y * 0.5) + 0.5
-        y = (y * 255).astype(np.uint8)
-        return y
+        
+        return ((y * 0.5 + 0.5) * 255).astype(np.uint8)
 
 
 parser = argparse.ArgumentParser()
