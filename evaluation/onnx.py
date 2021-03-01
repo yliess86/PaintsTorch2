@@ -34,42 +34,44 @@ class PaintsTorch2(nn.Module):
         return y
 
 
-parser = argparse.ArgumentParser()
-parser.add_argument("--features", type=int, default=32)
-parser.add_argument("--model",    type=str, required=True)
-parser.add_argument("--save",     type=str, required=True)
-parser.add_argument("--opset",    type=int, default=9)
-parser.add_argument("--bn",       action="store_true")
-args = parser.parse_args()
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--features", type=int, default=32)
+    parser.add_argument("--model",    type=str, required=True)
+    parser.add_argument("--save",     type=str, required=True)
+    parser.add_argument("--opset",    type=int, default=9)
+    parser.add_argument("--bn",       action="store_true")
+    args = parser.parse_args()
 
 
-model = PaintsTorch2(args.features, args.model, "./models/i2v.pth", args.bn)
-model = model.eval()
+    model = PaintsTorch2(args.features, args.model, "./models/i2v.pth", args.bn)
+    model = model.eval()
 
-x, h = torch.ones((2, 4, 512, 512)), torch.zeros((2, 4, 128, 128))
-x[:, :3] = (x[:, :3] - 0.5) / 0.5
-h[:, :3] = (h[:, :3] - 0.5) / 0.5
-y_torch = model(x, h)[0].numpy().transpose((1, 2, 0)) * 0.5 + 0.5
+    x, h = torch.ones((2, 4, 512, 512)), torch.zeros((2, 4, 128, 128))
+    x[:, :3] = (x[:, :3] - 0.5) / 0.5
+    h[:, :3] = (h[:, :3] - 0.5) / 0.5
+    y_torch = model(x, h)[0].numpy().transpose((1, 2, 0)) * 0.5 + 0.5
 
-torch.onnx.export(
-    model, (x, h), args.save,
-    input_names=["input", "hints", *(n for n, p in model.named_parameters())],
-    output_names=["illustration"],
-    dynamic_axes={
-        "input"       : { 0: "batch" },
-        "hints"       : { 0: "batch" },
-        "illustration": { 0: "batch" },
-    },
-    do_constant_folding=True,
-    export_params=True,
-    opset_version=args.opset,
-    verbose=False,
-)
+    parameters = (n for n, p in model.named_parameters())
+    torch.onnx.export(
+        model, (x, h), args.save,
+        input_names=["input", "hints", *parameters],
+        output_names=["illustration"],
+        dynamic_axes={
+            "input"       : { 0: "batch" },
+            "hints"       : { 0: "batch" },
+            "illustration": { 0: "batch" },
+        },
+        do_constant_folding=True,
+        export_params=True,
+        opset_version=args.opset,
+        verbose=False,
+    )
 
-x, h = x.numpy(), h.numpy()
-session = onnx.InferenceSession(args.save)
-y_onnx = session.run(["illustration"], {"input": x, "hints": h})
-y_onnx = y_onnx[0][0].transpose((1, 2, 0)) * 0.5 + 0.5
+    x, h = x.numpy(), h.numpy()
+    session = onnx.InferenceSession(args.save)
+    y_onnx = session.run(["illustration"], {"input": x, "hints": h})
+    y_onnx = y_onnx[0][0].transpose((1, 2, 0)) * 0.5 + 0.5
 
-print("Onnx close to Pytorch?", np.allclose(y_torch, y_onnx))
-print("Diff Abs:", np.sum(np.abs(y_torch - y_onnx)))
+    print("Onnx close to Pytorch?", np.allclose(y_torch, y_onnx))
+    print("Mean Abs Diff:", np.sum(np.abs(y_torch - y_onnx)) / (512 * 512 * 3))
