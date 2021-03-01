@@ -48,7 +48,8 @@ model = (
 
 m = np.ones((*SIZE, 1), dtype=np.float32)
 if args.m is not None:
-    m = np.array(Image.open(args.m).convert("L").resize(SIZE)) / 255
+    m = Image.open(args.m).convert("L").resize(SIZE)
+    m = np.array(m, dtype=np.float32) / 255
     m = m[:, :, None]
 
 x = Image.open(args.x).convert("RGB").resize(SIZE)
