@@ -22,15 +22,6 @@ class TorchInference:
         return y[0].cpu().numpy().transpose((1, 2, 0))
 
 
-class OnnxInference:
-    def __init__(self, model: str) -> None:
-        self.sess = onnx.InferenceSession(model)
-
-    def __call__(self, x: np.ndarray, h: np.ndarray) -> np.ndarray:
-        y = self.sess.run(["illustration"], { "input": x, "hints": h })
-        return y[0][0].transpose((1, 2, 0))
-
-
 parser = argparse.ArgumentParser()
 parser.add_argument("-x",         type=str, required=True)
 parser.add_argument("-c",         type=str, required=False)
@@ -41,10 +32,7 @@ parser.add_argument("--bn",       action="store_true")
 args = parser.parse_args()
 
 
-model = (
-    OnnxInference(args.model) if args.model.endswith(".onnx") else
-    TorchInference(args.model, args.features, args.bn)
-)
+model = TorchInference(args.model, args.features, args.bn)
 
 m = np.ones((*SIZE, 1), dtype=np.float32)
 if args.m is not None:
