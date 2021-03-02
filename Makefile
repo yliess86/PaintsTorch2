@@ -1,6 +1,6 @@
 FEATURES=32
 BATCHSIZE=8
-MODEL=models/paintstorch2_bn_100/checkpoint_99.pth
+MODEL=models/paintstorch2_guide_40/checkpoint_39.pth
 GUIDE=--guide
 BN=--bn
 
@@ -35,3 +35,11 @@ test:
 
 	python -m evaluation.data \
 		--dataset dataset
+
+convert:
+	python -m evaluation.export \
+		--features ${FEATURES} \
+		--model ${MODEL} \
+		--save docs/resources/paintstorch.onnx
+
+	rm -rf docs/resources/paintstorch.onnx docs/resources/paintstorch.pb

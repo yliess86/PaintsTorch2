@@ -1,4 +1,4 @@
-from evaluation.onnx import PaintsTorch2
+from evaluation.export import PaintsTorch2
 from PIL import Image
 
 import argparse

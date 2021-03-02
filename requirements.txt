@@ -10,3 +10,5 @@ tensorboard
 beautifultable
 lpips
 onnx_runtime
+tensorflow-gpu
+git+https://github.com/onnx/onnx-tensorflow.git

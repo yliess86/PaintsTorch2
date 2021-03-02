@@ -3,101 +3,64 @@ const ops = ndarray.ops;
 
 class PaintsTorch2 {
     constructor() {
-        this.session = new onnx.InferenceSession({ backendHint: "webgl" });
-        this.session.loadModel("resources/paintstorch.onnx");
+        this.model = undefined;
 
         this.WIDTH  = 512;
         this.HEIGHT = 512;
         this.PIXELS = this.WIDTH * this.HEIGHT;
-
+        
         this.H_WIDTH  = 128;
         this.H_HEIGHT = 128;
         this.H_PIXELS = this.H_WIDTH * this.H_HEIGHT;
+        
+        this.load();
     }
 
-    draw = (x_ctx, m_ctx, h_cvs, callback) => {
-        let x = x_ctx.getImageData(0, 0, this.WIDTH, this.HEIGHT).data;
-        let m = m_ctx.getImageData(0, 0, this.WIDTH, this.HEIGHT).data;
-        let h = this.resize(h_cvs, this.H_WIDTH, this.H_HEIGHT).data;
-        
-        this.forward(x, m, h).then(data => callback(data));
-    };
-
-    unnormalize_color = pick => {
-        ops.mulseq(pick, 0.5);
-        ops.addseq(pick, 0.5);
-        ops.mulseq(pick, 255);
-    };
-
-    normalize_mask  = pick => ops.divseq(pick, 255);
-    normalize_color = pick => {
-        ops.divseq(pick, 255);
-        ops.subseq(pick, 0.5);
-        ops.divseq(pick, 0.5);
-    };
-
-    data_to_ndarray = (x, c, h, w) => {
-        const from_size = [h, w, 4];
-        const to_size = c > 0? [1, c, h, w]: [1, h, w];
-        const to_pixels = c > 0? c * h * w: h * w;
-
-        let from = ndarray(new Float32Array(x), from_size);
-        let to = ndarray(new Float32Array(to_pixels), to_size);
-        
-        if (c > 0) for(let i = 0; i < 4; i++) ops.assign(to.pick(0, i, null, null), from.pick(null, null, i));
-        else ops.assign(to.pick(0, null, null), from.pick(null, null, 0));
-        
-        return to;
-    };
-
-    forward = async (x, m, h) => {
-        if (this.session == undefined) return new ImageData(x, this.WIDTH, this.HEIGHT);
-
-        let x_ndarray = this.data_to_ndarray(x, 4, this.HEIGHT,   this.WIDTH  );
-        let m_ndarray = this.data_to_ndarray(m, 0, this.HEIGHT,   this.WIDTH  );
-        let h_ndarray = this.data_to_ndarray(h, 4, this.H_HEIGHT, this.H_WIDTH);
-
-        ops.assign(x_ndarray.pick(0, 3, null, null), m_ndarray.pick(0, null, null));
-        
-        this.normalize_mask(x_ndarray.pick(0, 3, null, null));
-        this.normalize_mask(h_ndarray.pick(0, 3, null, null));
-
-        for(let i = 0; i < 3; i++) {
-            this.normalize_color(x_ndarray.pick(0, i, null, null));
-            this.normalize_color(h_ndarray.pick(0, i, null, null));
-        }
-        
-        let x_tensor = new Tensor(x_ndarray.data, "float32", [1, 4, this.HEIGHT,   this.WIDTH  ]);
-        let h_tensor = new Tensor(h_ndarray.data, "float32", [1, 4, this.H_HEIGHT, this.H_WIDTH]);
-        
-        const y_map  = await this.session.run([x_tensor, h_tensor]);
-        const y_data = y_map.values().next().value.data;
-        
-        let y_from = ndarray(new Float32Array(y_data), [1, 3, this.HEIGHT, this.WIDTH]);
-        let y_to   = ndarray(new Float32Array(this.PIXELS * 4), [this.HEIGHT, this.WIDTH, 4]);
-        
-        for(let i = 0; i < 3; i++) {
-            this.unnormalize_color(y_from.pick(0, i, null, null));
-            ops.assign(y_to.pick(null, null, i), y_from.pick(0, i, null, null));
-        }
-
-        ops.assigns(y_to.pick(null, null, 3), 255);
-
-        return new ImageData(Uint8ClampedArray.from(y_to.data), this.WIDTH, this.HEIGHT);
-    };
-
-    resize(data_cvs, w, h) {
-        let cvs = document.createElement("canvas");
-        let ctx = cvs.getContext("2d");
-        cvs.width = w;
-        cvs.height = h;
-
-        let width = data_cvs.width;
-        let height = data_cvs.height;
-
-        ctx.drawImage(data_cvs, 0, 0, width, height, 0, 0, w, h);
-        return ctx.getImageData(0, 0, w, h);
+    load = async () => {
+        this.model = await tf.loadGraphModel("resources/paintstorch2/model.json");
+        const x = tf.zeros([1, 4, this.HEIGHT, this.WIDTH]);
+        const h = tf.zeros([1, 4, this.H_HEIGHT, this.H_WIDTH]);
+        await this.model.executeAsync({ "input": x, "hints": h }, "Identity");
     }
+
+    draw = (x_ctx, m_ctx, h_ctx, callback) => this.forward(
+        x_ctx.getImageData(0, 0, this.WIDTH, this.HEIGHT).data,
+        m_ctx.getImageData(0, 0, this.WIDTH, this.HEIGHT).data,
+        h_ctx.getImageData(0, 0, this.WIDTH, this.HEIGHT).data,
+    ).then(data => callback(data));
+
+    to_tensor = data => tf.tensor3d(new Float32Array(data, [this.HEIGHT, this.WIDTH, 4]), [this.HEIGHT, this.WIDTH, 4], "float32");
+    to_data = tensor => new ImageData(Uint8ClampedArray.from(tensor), this.WIDTH, this.HEIGHT);
+
+    forward = async (x_data, m_data, h_data) => {
+        if (this.model == undefined) return new ImageData(x, this.WIDTH, this.HEIGHT);
+
+        let x = this.to_tensor(x_data);
+        let m = this.to_tensor(m_data);
+        let h = this.to_tensor(h_data).resizeBilinear([128, 128]);
+
+        x = tf.stack([
+            tf.gather(x, 0, 2).div(255.0).sub(0.5).div(0.5),
+            tf.gather(x, 1, 2).div(255.0).sub(0.5).div(0.5),
+            tf.gather(x, 2, 2).div(255.0).sub(0.5).div(0.5),
+            tf.gather(m, 0, 2).div(255.0),
+        ], 2).transpose([2, 0, 1]).expandDims(0);
+
+        h = tf.stack([
+            tf.gather(h, 0, 2).div(255.0).sub(0.5).div(0.5),
+            tf.gather(h, 1, 2).div(255.0).sub(0.5).div(0.5),
+            tf.gather(h, 2, 2).div(255.0).sub(0.5).div(0.5),
+            tf.gather(h, 3, 2).div(255.0),
+        ], 2).transpose([2, 0, 1]).expandDims(0);
+
+        let y = await this.model.executeAsync({ "input": x, "hints": h }, "Identity");
+        y = y.squeeze(0).transpose([1, 2, 0])
+        y = y.mul(0.5).add(0.5);
+        y = tf.concat([y, tf.fill([512, 512, 1], 1.0)], 2).mul(255.0);
+        y = await y.dataSync();
+
+        return this.to_data(y);
+    };
 }
 
 
@@ -388,7 +351,7 @@ let mask_dcvs = new DrawingCVS("mask", "#000000ff", "#000000ff", "#ffffffff", bc
 let hints_dcvs = new DrawingCVS("hints", "#000000ff", "#00000000", "#ffffffff", bckg_cvs, color_btn);
 
 let paintstorch = new PaintsTorch2();
-let paint = () => paintstorch.draw(illustration_dcvs.bckg_ctx, mask_dcvs.data_ctx, hints_dcvs.data_cvs, data => {
+let paint = () => paintstorch.draw(illustration_dcvs.bckg_ctx, mask_dcvs.data_ctx, hints_dcvs.data_ctx, data => {
     illustration_dcvs.data_ctx.putImageData(data, 0, 0);
     
     illustration_dcvs.update();
