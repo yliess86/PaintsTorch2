@@ -141,7 +141,6 @@ cython_debug/
 /dataset/
 /dataset_prep/
 /dataset_preprocessed/
-/images/
 /images_cut/
 /images_full/
 /experiments/
