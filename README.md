@@ -1,8 +1,8 @@
 # PaintsTorch2
 
-<img src="docs/branding/logo.png" style="max-width: 50%; margin: 0 25%;">
+<img src="docs/branding/logo.png" width="50%">
 
-<img src="images/01/x.png" style="max-width: 24%;"><img src="images/01/m.png" style="max-width: 25%;">|<img src="images/01/h.png" style="max-width: 25%;"><img src="images/01/y.png" style="max-width: 25%;">
+<img src="images/01/x.png" width="24%"><img src="images/01/m.png" width="25%">|<img src="images/01/h.png" width="25%"><img src="images/01/y.png" width="25%">
 
 <img src="images/02/x.png" style="max-width: 24%;"><img src="images/02/m.png" style="max-width: 25%;">|<img src="images/02/h.png" style="max-width: 25%;"><img src="images/02/y.png" style="max-width: 25%;">
 
