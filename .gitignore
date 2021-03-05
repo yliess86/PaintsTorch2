@@ -147,3 +147,4 @@ cython_debug/
 /checkpoints/
 /models/**/checkpoint_*.pth
 *.pth
+paintschainer.ts
