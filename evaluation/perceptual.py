@@ -1,5 +1,6 @@
 from beautifultable import BeautifulTable
 from paintstorch.network import Generator, Illustration2Vec
+from torch.utils.data import DataLoader
 from tqdm import tqdm
 from evaluation.data import FullHintsDataset, NoHintDataset, SparseHintsDataset
 
