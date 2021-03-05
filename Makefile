@@ -2,7 +2,7 @@ FEATURES=32
 BATCHSIZE=8
 MODEL=models/paintstorch2_guide_40/checkpoint_39.pth
 GUIDE=--guide
-BN=--bn
+BN=
 
 build:
 	sudo docker build -t yliess86/paintstorch2:latest .
@@ -17,21 +17,13 @@ train:
 		${GUIDE} ${BN}
 
 test:
-	python -m evaluation.fid \
+	python -m evaluation.benchmark \
 		--features ${FEATURES} \
 		--batch_size ${BATCHSIZE} \
 		--num_workers ${BATCHSIZE} \
 		--dataset dataset \
 		--model ${MODEL} \
-		 ${BN}
-
-	python -m evaluation.perceptual \
-		--features ${FEATURES} \
-		--batch_size ${BATCHSIZE} \
-		--num_workers ${BATCHSIZE} \
-		--dataset dataset \
-		--model ${MODEL} \
-		 ${BN}
+		${BN}
 
 	python -m evaluation.data \
 		--dataset dataset
