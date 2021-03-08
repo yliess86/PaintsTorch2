@@ -141,9 +141,11 @@ if __name__ == "__main__":
                         fid_fake.append(I(y_).cpu().numpy())
                         d_list.append(L(y, y_).cpu().numpy())
 
-                benchmark["LPIPS"][net_name][exp_name] = np.mean(d_list)
                 benchmark["FID"][net_name][exp_name] = InceptionV3Features.fid(
                     np.concatenate(fid_real), np.concatenate(fid_fake),
+                )
+                benchmark["LPIPS"][net_name][exp_name] = np.mean(
+                    np.concatenate(d_list)
                 )
 
     for metric_name in metric_names:
