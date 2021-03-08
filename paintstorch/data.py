@@ -377,11 +377,15 @@ class PaintsTorchDataset(Dataset):
         black_range: Rangei = Rangei(6, 10 + 1),
         n_color_range: Rangei = Rangei(0, 10 + 1),
         train: bool = True,
+        curriculum: bool = False,
     ) -> None:
         super(PaintsTorchDataset, self).__init__()
         self.black_range = black_range
         self.n_color_range = n_color_range
         self.train = train
+
+        self.curriculum = curriculum if self.train else False
+        self.curriculum_state = 1.0
         
         self.normalize = T.Normalize((0.5, ) * 3, (0.5, ) * 3)
         self.xdog = xDoG()
@@ -396,6 +400,9 @@ class PaintsTorchDataset(Dataset):
 
         self.prep = chain(*(filter(isnpz, listdir(f)) for f in listdir(prep)))
         self.prep = sorted(list(self.prep))
+    
+    def __len__(self) -> int:
+        return len(self.imgs)
 
     def transform(self, *imgs: List) -> List:
         if not self.train:
@@ -423,8 +430,24 @@ class PaintsTorchDataset(Dataset):
 
         return imgs
 
-    def __len__(self) -> int:
-        return len(self.imgs)
+    @property
+    def n_color(self) -> int:
+        if not self.train:
+            return 0
+
+        n_color = np.random.randint(*self.n_color_range) / 10
+        if self.curriculum:
+            n_color = int(min(self.curriculum_state, n_color))
+
+        return n_color
+
+    @property
+    def black(self) -> int:
+        if not self.train:
+            return 1
+
+        black = np.random.randint(*self.black_range) / 10
+        return black
 
     def __getitem__(self, idx: int) -> Sample:
         paint = self.imgs[idx]
@@ -445,16 +468,11 @@ class PaintsTorchDataset(Dataset):
             np.array(mask) for mask in masks
         ], axes=(1, 2, 0)) / 255
 
-        n_color = np.random.randint(*self.n_color_range) / 10
-        black = np.random.randint(*self.black_range) / 10
-        if not self.train:
-            n_color, black = 0, 1
-
         lineart = self.xdog(paint)
-        mask = Segmentor.sample(paint, masks, n_color=n_color)
-        composition = compose(paint, lineart, mask, black=black)
+        mask = Segmentor.sample(paint, masks, n_color=self.n_color)
+        composition = compose(paint, lineart, mask, black=self.black)
         input = generate_input(composition, mask)
-        hints = generate_hints(colors, mask, n_color)
+        hints = generate_hints(colors, mask, self.n_color)
 
         y = torch.from_numpy(paint).permute((2, 0, 1))
         x = torch.from_numpy(input).permute((2, 0, 1))
