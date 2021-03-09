@@ -436,7 +436,8 @@ class PaintsTorchDataset(Dataset):
             return 0
 
         n_color = (
-            np.random.randint(*self.n_color_range) / (self.n_color_range - 1)
+            np.random.randint(*self.n_color_range) /
+            (np.max(self.n_color_range) - 1)
         )
         if self.curriculum:
             n_color = int(max(self.curriculum_state, n_color))
@@ -448,7 +449,10 @@ class PaintsTorchDataset(Dataset):
         if not self.train:
             return 1
 
-        black = np.random.randint(*self.black_range) / (self.black_range - 1)
+        black = (
+            np.random.randint(*self.black_range) /
+            (np.max(self.black_range) - 1)
+        )
         return black
 
     def __getitem__(self, idx: int) -> Sample:
