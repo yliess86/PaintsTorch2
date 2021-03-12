@@ -22,21 +22,21 @@
     <a href=https://yliess86.github.io/PaintsTorch2/>Live App<a>
 </p>
 
-<p align="center">
+<p align="center" style="margin: 0px; padding: 0px;">
     <img src="images/01/x.png" width="15%">
     <img src="images/01/m.png" width="15%">
     <img src="images/01/h.png" width="15%">
     <img src="images/01/y.png" width="15%">
 </p>
 
-<p align="center">
+<p align="center" style="margin: 0px; padding: 0px;">
     <img src="images/02/x.png" width="15%">
     <img src="images/02/m.png" width="15%">
     <img src="images/02/h.png" width="15%">
     <img src="images/02/y.png" width="15%">
 </p>
 
-<p align="center">
+<p align="center" style="margin: 0px; padding: 0px;">
     <img src="images/03/x.png" width="15%">
     <img src="images/03/m.png" width="15%">
     <img src="images/03/h.png" width="15%">

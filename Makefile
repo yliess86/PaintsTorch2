@@ -17,6 +17,49 @@ train:
 		--num_workers ${BATCHSIZE} \
 		${GUIDE} ${BN} ${CURRICULUM}
 
+exp:
+	python3 -m kubeflow \
+		--n_gpu 4 \
+		--batch_size ${BATCHSIZE} \
+		--features ${FEATURES} \
+		--num_workers ${BATCHSIZE} \
+		--guide --curriculum
+
+	python3 -m kubeflow \
+		--n_gpu 4 \
+		--batch_size ${BATCHSIZE} \
+		--features ${FEATURES} \
+		--num_workers ${BATCHSIZE} \
+		--guide
+
+	python3 -m kubeflow \
+		--n_gpu 4 \
+		--batch_size ${BATCHSIZE} \
+		--features ${FEATURES} \
+		--num_workers ${BATCHSIZE}
+
+
+	python3 -m kubeflow \
+		--n_gpu 4 \
+		--batch_size ${BATCHSIZE} \
+		--features ${FEATURES} \
+		--num_workers ${BATCHSIZE} \
+		--guide --bn --curriculum
+
+	python3 -m kubeflow \
+		--n_gpu 4 \
+		--batch_size ${BATCHSIZE} \
+		--features ${FEATURES} \
+		--num_workers ${BATCHSIZE} \
+		--guide --bn
+	
+	python3 -m kubeflow \
+		--n_gpu 4 \
+		--batch_size ${BATCHSIZE} \
+		--features ${FEATURES} \
+		--num_workers ${BATCHSIZE} \
+		--bn
+
 test:
 	python -m evaluation.benchmark \
 		--features ${FEATURES} \

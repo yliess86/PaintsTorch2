@@ -125,7 +125,7 @@ features = args.features
 λ2 = 10
 γ = 0.1
 γ_step = epochs // 2
-curriculum_step = 0.9 / int(0.9 * epochs)
+ε_curriculum_step = 0.9 / int(0.8 * epochs)
 
 images = args.dataset
 preps = f"{(images[:-1] if images.endswith('/') else images)}_preprocessed"
@@ -139,7 +139,10 @@ sample_no_hints = testset[0]
 
 dataset = PaintsTorchDataset((images, preps), skeletonizer, train=True)
 sample_hints = dataset[0]
-dataset.curriculum_state = args.curriculum
+
+currciculum_state_ref = [0.9]
+dataset.curriculum = args.curriculum
+dataset.curriculum_state = currciculum_state_ref
 
 loader = DataLoader(
     dataset,
@@ -244,10 +247,10 @@ for epoch in tqdm(range(args.epochs), desc="Epoch"):
     schedulerG.step()
     schedulerD.step()
 
-    curriculum_state = loader.dataset.curriculum_state
     if args.curriculum:
-        new_state = max(0, curriculum_state - curriculum_step)
-        loader.dataset.curriculum_state = new_state
+        cur_state = currciculum_state_ref.pop()
+        new_state = max(0, cur_state - ε_curriculum_step)
+        currciculum_state_ref.append(new_state)
 
     G.eval()
     nh_img = test(F1, G, C, sample_no_hints, is_guide=args.guide)
@@ -262,8 +265,9 @@ for epoch in tqdm(range(args.epochs), desc="Epoch"):
     writer.add_scalar("Loss/G/guide", total_G_guide, step)
     writer.add_scalar("Loss/total", total_loss, step)
 
-    writer.add_scalar("Hypermarameter/curriculum", curriculum_state, step)
     writer.add_scalar("Hypermarameter/lr", optimG.param_groups[0]['lr'], step)
+    if args.curriculum:
+        writer.add_scalar("Hypermarameter/curriculum", cur_state, step)
     
     writer.add_image("Image/no_hints", nh_img, step, dataformats="HWC")
     writer.add_image("Image/hints", h_img, step, dataformats="HWC")

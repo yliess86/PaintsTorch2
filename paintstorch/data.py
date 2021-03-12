@@ -385,7 +385,7 @@ class PaintsTorchDataset(Dataset):
         self.train = train
 
         self.curriculum = curriculum if self.train else False
-        self.curriculum_state = 0.9
+        self.curriculum_state = [0.9]
         
         self.normalize = T.Normalize((0.5, ) * 3, (0.5, ) * 3)
         self.xdog = xDoG()
@@ -440,7 +440,7 @@ class PaintsTorchDataset(Dataset):
             (np.max(self.n_color_range) - 1)
         )
         if self.curriculum:
-            n_color = int(max(self.curriculum_state, n_color))
+            n_color = int(max(self.curriculum_state[-1], n_color))
 
         return n_color
 
