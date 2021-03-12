@@ -9,6 +9,6 @@ tqdm
 tensorboard
 beautifultable
 lpips
-onnx_runtime
+onnxruntime
 tensorflow-gpu
 git+https://github.com/onnx/onnx-tensorflow.git
