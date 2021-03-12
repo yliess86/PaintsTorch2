@@ -32,8 +32,16 @@ EXP               = str(uuid.uuid4()).replace("-", "_")
 BASE_PATH         = "/data"
 MOUNT_PATH        = f"{BASE_PATH}/dl/PaintsTorch2"
 
+SUFFIXES          = []
+if args.amp: SUFFIXES.append("amp")
+if args.guide: SUFFIXES.append("guide")
+if args.bn: SUFFIXES.append("bn")
+if args.curriculum: SUFFIXES.append("curriculum")
+SUFFIXES.append(str(args.batch_size))
+
 DATASET_PATH      = f"{BASE_PATH}/{args.dataset}"
-CKPT_PATH         = f"{BASE_PATH}/checkpoints"
+SUFFIX            = "_".join(SUFFIXES)
+CKPT_PATH         = f"{BASE_PATH}/checkpoints/{SUFFIX}"
 
 TB_PATH           = "/tensorboard"
 DGX_TB_PATH       = f"{BASE_PATH}/dl/tensorboard/PaintsTorch2"
