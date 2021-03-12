@@ -3,6 +3,7 @@ BATCHSIZE=8
 MODEL=models/paintstorch2_guide_40/checkpoint_39.pth
 GUIDE=--guide
 BN=
+CURRICULUM=
 
 build:
 	sudo docker build -t yliess86/paintstorch2:latest .
@@ -14,7 +15,7 @@ train:
 		--batch_size ${BATCHSIZE} \
 		--features ${FEATURES} \
 		--num_workers ${BATCHSIZE} \
-		${GUIDE} ${BN}
+		${GUIDE} ${BN} ${CURRICULUM}
 
 test:
 	python -m evaluation.benchmark \
