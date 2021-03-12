@@ -175,6 +175,8 @@ schedulerG = StepLR(optimG, **params)
 schedulerD = StepLR(optimD, **params)
 
 writer = SummaryWriter(log_dir=log_dir)
+if not os.path.isdir(args.checkpoint):
+    os.makedirs(args.checkpoint, exist_ok=True)
 
 for epoch in tqdm(range(args.epochs), desc="Epoch"):
     total_D_fake = 0.0
