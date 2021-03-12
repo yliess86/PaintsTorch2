@@ -385,7 +385,7 @@ class PaintsTorchDataset(Dataset):
         self.train = train
 
         self.curriculum = curriculum if self.train else False
-        self.curriculum_state = 1.0
+        self.curriculum_state = 0.9
         
         self.normalize = T.Normalize((0.5, ) * 3, (0.5, ) * 3)
         self.xdog = xDoG()
