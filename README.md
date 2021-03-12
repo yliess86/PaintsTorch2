@@ -6,6 +6,23 @@
 </p>
 
 <p align="center">
+    <a href="https://github.com/yliess86/PaintsTorch2/blob/master/LICENSE">
+        <img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-yellow.svg" />
+    </a>
+    <a href="https://www.python.org/downloads/release/python-360/">
+        <img alt="Python 3.8+" src="https://img.shields.io/badge/python-3.8+-green.svg" />
+    </a>
+    <a href="https://pytorch.org/">
+        <img alt="Pytorch 1.7.1+" src="https://img.shields.io/badge/pytorch-1.7.1+-blue.svg" />
+    </a>
+</p>
+
+<p align="center">
+    <b>PaintsTorch2</b>: Self-Supervised User-Guided Anime Lineart Colorization <br />
+    <a href=https://yliess86.github.io/PaintsTorch2/>Live App<a>
+</p>
+
+<p align="center">
     <img src="images/01/x.png" width="15%">
     <img src="images/01/m.png" width="15%">
     <img src="images/01/h.png" width="15%">
@@ -17,6 +34,13 @@
     <img src="images/02/m.png" width="15%">
     <img src="images/02/h.png" width="15%">
     <img src="images/02/y.png" width="15%">
+</p>
+
+<p align="center">
+    <img src="images/03/x.png" width="15%">
+    <img src="images/03/m.png" width="15%">
+    <img src="images/03/h.png" width="15%">
+    <img src="images/03/y.png" width="15%">
 </p>
 
 
