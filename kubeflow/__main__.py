@@ -14,7 +14,6 @@ parser.add_argument("--dataset",       type=str, default="dataset")
 parser.add_argument("--features",      type=int, default=32)
 parser.add_argument("--epochs",        type=int, default=40)
 parser.add_argument("--batch_size",    type=int, default=4)
-parser.add_argument("--num_workers",   type=int, default=4)
 parser.add_argument("--n_gpu",         type=int, default=1)
 parser.add_argument("--amp",           action="store_true")
 parser.add_argument("--guide",         action="store_true")
@@ -54,7 +53,7 @@ with Pipeline(PIPELINE_NAME, PIPELINE_DESC, None, EXP, NAMESPACE) as pipeline:
         f"--features {args.features}",
         f"--epochs {args.epochs}",
         f"--batch_size {args.batch_size * args.n_gpu}",
-        f"--num_workers {args.num_workers * args.n_gpu}",
+        f"--num_workers {4 * args.n_gpu}",
         f"--dataset {DATASET_PATH}",
         f"--tensorboard {TB_PATH}",
         f"--checkpoint {CKPT_PATH}",
