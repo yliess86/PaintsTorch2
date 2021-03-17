@@ -1,7 +1,5 @@
 from itertools import chain, product
-from paintstorch.data import (
-    isimg, isnpz, listdir, PaintsTorchDataset, Sample, xDoG,
-)
+from paintstorch.data import isimg, isnpz, listdir, Sample, xDoG
 from PIL import Image
 from skimage.draw import disk
 from torch.utils.data import DataLoader, Dataset
@@ -12,31 +10,6 @@ import cv2
 import numpy as np
 import torch
 import torchvision.transforms as T
-
-
-def rgb2yuv(rgb: torch.Tensor) -> torch.Tensor:
-    device = rgb.device
-    rgb = rgb.cpu().numpy()
-    yuv = cv2.cvtColor(rgb, cv2.COLOR_RGB2YUV)
-    yuv = torch.from_numpy(yuv).to(device)
-    return yuv
-
-
-def yuv2rgb(yuv: torch.Tensor) -> torch.Tensor:
-    device = yuv.device
-    yuv = yuv.cpu().numpy()
-    rgb = cv2.cvtColor(yuv, cv2.COLOR_YUV2RGB)
-    rgb = torch.from_numpy(rgb).to(device)
-    return rgb
-
-
-def chainer_postprod(x: torch.Tensor) -> torch.Tensor:
-    x = x.permute((0, 2, 3, 1))
-    for i in range(x.size(0)):
-        x[i] = yuv2rgb(x[i])
-    x = x.permute((0, 3, 1, 2))
-    x = ((x / 255) - 0.5) / 0.5
-    return x
 
 
 class Dataset_(Dataset):
@@ -58,21 +31,25 @@ class Dataset_(Dataset):
         self, y: torch.Tensor, x: torch.Tensor, h: torch.Tensor,
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         if self.chainer:
-            y = y * 255.0
-            x = x.mean(0).unsqueeze(0) * 255.0
-            
+            y, x, h = y * 255, x * 255, h * 255
+            x = x.mean(0).unsqueeze(0)
             h = h.permute((1, 2, 0))
-            
-            h_m = h[..., -1].unsqueeze(-1)
-            h_c = torch.from_numpy(np.array([-512, 128, 128])).float()
-            h_c = h_c.view(1, 1, 3)
-            h_c = h_c.repeat((h.size(0), h.size(1), 1))
 
-            h = rgb2yuv(h[..., :3] * 255.0) * h_m + h_c * (1 - h_m)
-            h = h.permute((2, 0, 1))
+            x1 = np.zeros((h.size(0), h.size(1), 4))
+            x1[:, :, 0] = x[0].numpy()
+            x1[:, :, 1] = -512
+            x1[:, :, 2] = 128
+            x1[:, :, 3] = 128
 
-            x1, x2 = torch.cat([x, h], dim=0), x.clone()
-            return y, x1, x2
+            h = h.numpy().astype(np.uint8)
+            r, g, b, a = cv2.split(h)
+            h = cv2.cvtColor(cv2.merge((b, g, r)), cv2.COLOR_BGR2YUV)
+
+            s = a != 0
+            x1[s, 1:] = h[s]
+            x1 = torch.from_numpy(x1.transpose(2, 0, 1)).float()
+
+            return y, x1, x
 
         else:
             y = self.normalize(y)
@@ -189,31 +166,3 @@ def squeeze_permute_cpu_np(*objects: List) -> List:
         *objects,
         transform=lambda x: x.squeeze(0).permute((1, 2, 0)).cpu().numpy(),
     )
-
-
-@torch.no_grad()
-def stitch(sample: Sample) -> np.ndarray:
-    y, x, h, c = sample
-    y, x, h, c = squeeze_permute_cpu_np(y, x, h, c)
-    x, h, c = x[..., :3], h[..., :3], c[..., :3]
-    img = (np.hstack([y, x, h, c]) * 0.5) + 0.5
-    img = (img * 255).astype(np.uint8)
-    return img
-
-
-if __name__ == "__main__":
-    import argparse
-
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--dataset", type=str, default="./dataset")
-    args = parser.parse_args()
-
-    images = args.dataset
-    preps = f"{(images[:-1] if images.endswith('/') else images)}_preprocessed"
-    skeletonizer = "./models/skeletonizer.ts"
-    dataset = PaintsTorchDataset((images, preps), skeletonizer, train=True)
-
-    Image.fromarray(np.vstack([
-        stitch(dataset[0]) for _ in tqdm(range(20), desc="Mosaic")
-    ])).show()

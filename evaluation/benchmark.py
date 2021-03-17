@@ -3,10 +3,9 @@ from paintstorch.network import Generator, Illustration2Vec
 from torch.utils.data import DataLoader
 from torchvision.models import inception_v3
 from tqdm import tqdm
-from evaluation.data import (
-    chainer_postprod, FullHintsDataset, NoHintDataset, SparseHintsDataset,
-)
+from evaluation.data import FullHintsDataset, NoHintDataset, SparseHintsDataset
 
+import cv2
 import lpips
 import numpy as np
 import scipy
@@ -62,6 +61,7 @@ if __name__ == "__main__":
     parser.add_argument("--dataset",       type=str, default="./dataset")
     parser.add_argument("--model",         type=str, required=True)
     parser.add_argument("--bn",            action="store_true")
+    parser.add_argument("--chainer",       action="store_true")
     args = parser.parse_args()
 
     images = args.dataset
@@ -77,7 +77,7 @@ if __name__ == "__main__":
     F1 = torch.jit.trace(Illustration2Vec("./models/i2v.pth").eval(), x).cuda()
     
     I = InceptionV3Features().eval().cuda()
-    L = lpips.LPIPS(net="alex", spatial=True).cuda()
+    L = lpips.LPIPS(net="squeeze", spatial=True).cuda()
 
     PC = torch.jit.load("./models/paintschainer.ts").cuda()
 
@@ -89,15 +89,13 @@ if __name__ == "__main__":
     }
     exp_names = exp_datasets.keys()
 
+    models = (
+        ["PaintsTorch2", "PaintsChainer"] if args.chainer else
+        ["PaintsTorch2"]
+    )
     benchmark = {
-        "FID": {
-            "PaintsTorch2": {name: 0 for name in exp_names},
-            "PaintsChainer": {name: 0 for name in exp_names},
-        },
-        "LPIPS": {
-            "PaintsTorch2": {name: 0 for name in exp_names},
-            "PaintsChainer": {name: 0 for name in exp_names},
-        }
+        "FID": {m: {name: 0 for name in exp_names} for m in models},
+        "LPIPS": {m: {name: 0 for name in exp_names} for m in models},
     }
     metric_names = benchmark.keys()
     net_names = benchmark["FID"].keys()
@@ -124,12 +122,21 @@ if __name__ == "__main__":
                         y, x1, x2 = y.cuda(), x1.cuda(), x2.cuda()
 
                         y_ = PC(x1, x2)
-                        y_ = chainer_postprod(y_)
-                        y  = chainer_postprod(y)
+                        
+                        y_ = y_.permute(0, 2, 3, 1).clip(0, 255)
+                        y_ = y_.cpu().numpy().astype(np.uint8)
+                        for i in range(y_.shape[0]):
+                            y_[i] = cv2.cvtColor(y_[i], cv2.COLOR_YUV2BGR)
+                        y_ = torch.from_numpy(y_).permute(0, 3, 1, 2)
+                        y_ = y_.float().cuda()
+                        
+                        y_ = ((y_ / 255.0) - 0.5) / 0.5
+                        y  = ((y / 255.0) - 0.5) / 0.5
 
                         fid_real.append(I(y).cpu().numpy())
                         fid_fake.append(I(y_).cpu().numpy())
                         d_list.append(L(y, y_).cpu().numpy())
+
                 else:
                     for y, x, h, _ in tqdm(loader, desc=desc):
                         y, x, h = y.cuda(), x.cuda(), h.cuda()
